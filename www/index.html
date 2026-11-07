@@ -294,6 +294,8 @@ button:focus-visible,summary:focus-visible{outline:3px solid var(--you);outline-
 .prow.good .meter i{background:var(--good)}
 .prow small{font-size:15px;color:var(--ink-soft)}
 .pnote{margin:0;font-size:16px;color:var(--ink-soft)}
+#backup{width:100%;margin:8px 0;padding:8px;color:var(--ink);background:var(--card);border:2px solid var(--ink);border-radius:10px;font:14px/1.3 ui-monospace,Menlo,monospace;resize:none;-webkit-user-select:text;user-select:text}
+#backup-box .row{margin:6px 0}
 
 @media (max-height:700px){
   .board{padding:8px 10px}
@@ -535,6 +537,16 @@ button:focus-visible,summary:focus-visible{outline:3px solid var(--you);outline-
     </header>
     <div id="progress-body"></div>
     <p class="pnote" id="pnote"></p>
+    <details class="rules" id="backup-box">
+      <summary>Резервная копия</summary>
+      <p class="pnote">Код хранит весь прогресс. Вставь его на другом устройстве или после очистки браузера, и данные вернутся.</p>
+      <textarea id="backup" rows="3" spellcheck="false" aria-label="Код резервной копии"></textarea>
+      <div class="row two">
+        <button type="button" class="mini" id="btn-backup-show">Показать код</button>
+        <button type="button" class="mini" id="btn-backup-load">Загрузить код</button>
+      </div>
+      <p class="pnote" id="backup-msg" role="status"></p>
+    </details>
     <div class="actions">
       <button type="button" class="btn primary" id="btn-train-weak">Тренировать слабое</button>
       <button type="button" class="btn" id="btn-reset">Сбросить прогресс</button>
@@ -558,6 +570,8 @@ const MIN_DATA = 8;             // сколько ответов нужно, ч�
 const WINDOW = 30;              // сколько последних ответов по теме помним
 const REPEAT_SHARE = 0.35;      // в режиме «Слабые места»: доля повторов прошлых ошибок
 const MAX_MISTAKES = 30;
+const MAX_MATCHES = 500;
+const BACKUP_PREFIX = 'S2G1:';
 const STORE_KEY = 'tablichny-sport-v1';
 const REDUCED = !!(window.matchMedia && matchMedia('(prefers-reduced-motion: reduce)').matches);
 
@@ -740,7 +754,7 @@ const dec = (x) => x.toFixed(1).replace('.', ',');
 const prefs = {
   subject: 'math', topic: 'all', sport: 'football', format: '1x1', level: 'medium',
   rec: { best: { easy: 0, medium: 0, hard: 0 }, played: 0, wins: 0 },
-  stats: {}, mistakes: []
+  stats: {}, mistakes: [], matches: [], guestId: '', savedAt: 0
 };
 function cleanMistake(m) {
   if (!m || !TOPICS[m.topic] || typeof m.full !== 'string') return null;
@@ -754,35 +768,105 @@ function cleanMistake(m) {
   }
   return q;
 }
-function loadPrefs() {
-  try {
-    const o = JSON.parse(localStorage.getItem(STORE_KEY) || 'null');
-    if (!o) return;
-    if (SUBJECTS[o.subject]) prefs.subject = o.subject;
-    if (o.topic) prefs.topic = String(o.topic);
-    if (SPORTS[o.sport]) prefs.sport = o.sport;
-    if (o.format === '1x1' || o.format === '2x2') prefs.format = o.format;
-    if (LEVELS[o.level]) prefs.level = o.level;
-    if (o.rec) {
-      prefs.rec.played = +o.rec.played || 0;
-      prefs.rec.wins = +o.rec.wins || 0;
-      for (const k of Object.keys(LEVELS)) prefs.rec.best[k] = +(o.rec.best && o.rec.best[k]) || 0;
-    }
-    if (o.stats) {
-      for (const id of Object.keys(TOPICS)) {
-        const s = o.stats[id];
-        if (s && Array.isArray(s.recent)) {
-          prefs.stats[id] = {
-            recent: s.recent.filter(r => Array.isArray(r) && isFinite(r[1])).map(r => [r[0] ? 1 : 0, +r[1]]).slice(-WINDOW),
-            total: +s.total || 0
-          };
-        }
+const uid = () => (window.crypto && crypto.randomUUID) ? crypto.randomUUID() : 'g' + Date.now().toString(36) + Math.random().toString(36).slice(2, 10);
+function cleanMatch(m) {
+  if (!m || typeof m.id !== 'string' || !SUBJECTS[m.subject]) return null;
+  return {
+    id: m.id.slice(0, 64), t: +m.t || 0, subject: m.subject, topic: String(m.topic || 'all'), level: LEVELS[m.level] ? m.level : 'medium',
+    sport: SPORTS[m.sport] ? m.sport : 'football', format: m.format === '2x2' ? '2x2' : '1x1', you: +m.you || 0, foe: +m.foe || 0,
+    outcome: m.outcome === 'win' || m.outcome === 'lose' ? m.outcome : 'draw', correct: +m.correct || 0, wrong: +m.wrong || 0,
+    timeouts: +m.timeouts || 0, sec: +m.sec || 0, byTopic: (m.byTopic && typeof m.byTopic === 'object') ? m.byTopic : {}, sent: !!m.sent
+  };
+}
+function sanitize(o) {
+  const c = { rec: { best: { easy: 0, medium: 0, hard: 0 }, played: 0, wins: 0 }, stats: {}, mistakes: [], matches: [], guestId: '', savedAt: 0 };
+  if (!o || typeof o !== 'object') return c;
+  if (o.rec) {
+    c.rec.played = +o.rec.played || 0; c.rec.wins = +o.rec.wins || 0;
+    for (const k of Object.keys(LEVELS)) c.rec.best[k] = +(o.rec.best && o.rec.best[k]) || 0;
+  }
+  if (o.stats) {
+    for (const id of Object.keys(TOPICS)) {
+      const s = o.stats[id];
+      if (s && Array.isArray(s.recent)) {
+        c.stats[id] = {
+          recent: s.recent.filter(r => Array.isArray(r) && isFinite(r[1])).map(r => [r[0] ? 1 : 0, +r[1]]).slice(-WINDOW),
+          total: +s.total || 0
+        };
       }
     }
-    if (Array.isArray(o.mistakes)) prefs.mistakes = o.mistakes.map(cleanMistake).filter(Boolean).slice(-MAX_MISTAKES);
-  } catch (e) { /* хранилище недоступно */ }
+  }
+  if (Array.isArray(o.mistakes)) c.mistakes = o.mistakes.map(cleanMistake).filter(Boolean).slice(-MAX_MISTAKES);
+  if (Array.isArray(o.matches)) c.matches = o.matches.map(cleanMatch).filter(Boolean).slice(-MAX_MATCHES);
+  if (typeof o.guestId === 'string') c.guestId = o.guestId.slice(0, 64);
+  c.savedAt = +o.savedAt || 0;
+  return c;
 }
-function savePrefs() { try { localStorage.setItem(STORE_KEY, JSON.stringify(prefs)); } catch (e) { /* ничего */ } }
+function applyData(o) {
+  if (!o || typeof o !== 'object') return;
+  if (SUBJECTS[o.subject]) prefs.subject = o.subject;
+  if (o.topic) prefs.topic = String(o.topic);
+  if (SPORTS[o.sport]) prefs.sport = o.sport;
+  if (o.format === '1x1' || o.format === '2x2') prefs.format = o.format;
+  if (LEVELS[o.level]) prefs.level = o.level;
+  const c = sanitize(o);
+  prefs.rec = c.rec; prefs.stats = c.stats; prefs.mistakes = c.mistakes; prefs.matches = c.matches;
+  if (c.guestId) prefs.guestId = c.guestId;
+  prefs.savedAt = c.savedAt;
+}
+/* слияние чужих данных (резервная копия, позже и аккаунт): ничего не теряется, матчи объединяются по id */
+function mergeData(o) {
+  const c = sanitize(o);
+  const have = new Set(prefs.matches.map(m => m.id));
+  c.matches.forEach(m => { if (!have.has(m.id)) prefs.matches.push(m); });
+  prefs.matches.sort((a, b) => a.t - b.t);
+  prefs.matches = prefs.matches.slice(-MAX_MATCHES);
+  for (const id of Object.keys(c.stats)) {
+    const mine = prefs.stats[id];
+    if (!mine || c.stats[id].total > mine.total) prefs.stats[id] = c.stats[id];
+  }
+  const keys = new Set(prefs.mistakes.map(m => m.topic + '|' + m.full));
+  c.mistakes.forEach(m => { if (!keys.has(m.topic + '|' + m.full)) prefs.mistakes.push(m); });
+  prefs.mistakes = prefs.mistakes.slice(-MAX_MISTAKES);
+  if (c.rec.played > prefs.rec.played) { prefs.rec.played = c.rec.played; prefs.rec.wins = c.rec.wins; }
+  for (const k of Object.keys(LEVELS)) prefs.rec.best[k] = Math.max(prefs.rec.best[k] || 0, c.rec.best[k] || 0);
+}
+const exportData = () => JSON.parse(JSON.stringify(prefs));
+
+/* надёжное хранение: localStorage + зеркало в IndexedDB, при расхождении берём более свежее */
+function idbOpen() {
+  return new Promise((res, rej) => {
+    try {
+      if (!window.indexedDB) return rej(new Error('no idb'));
+      const r = indexedDB.open('school2game', 1);
+      r.onupgradeneeded = () => r.result.createObjectStore('kv');
+      r.onsuccess = () => res(r.result);
+      r.onerror = () => rej(r.error);
+    } catch (e) { rej(e); }
+  });
+}
+function idbPut(obj) { idbOpen().then(db => { db.transaction('kv', 'readwrite').objectStore('kv').put(obj, 'prefs'); }).catch(() => {}); }
+function idbGet() {
+  return idbOpen().then(db => new Promise(res => {
+    const q = db.transaction('kv').objectStore('kv').get('prefs');
+    q.onsuccess = () => res(q.result || null); q.onerror = () => res(null);
+  })).catch(() => null);
+}
+function loadPrefs() {
+  try { const raw = localStorage.getItem(STORE_KEY); if (raw) applyData(JSON.parse(raw)); } catch (e) { /* хранилище недоступно */ }
+  if (!prefs.guestId) prefs.guestId = uid();
+  idbGet().then(o => {
+    if (!o) { if (prefs.savedAt) idbPut(exportData()); return; }
+    if ((+o.savedAt || 0) > (prefs.savedAt || 0)) { applyData(o); normalizePrefs(); syncMenu(); if (!$('#screen-progress').hidden) renderProgress(); }
+  });
+}
+function savePrefs() {
+  prefs.savedAt = Date.now();
+  const data = exportData();
+  try { localStorage.setItem(STORE_KEY, JSON.stringify(data)); } catch (e) { /* ничего */ }
+  idbPut(data);
+}
+function askPersist() { try { if (navigator.storage && navigator.storage.persist) navigator.storage.persist(); } catch (e) { /* ничего */ } }
 function normalizePrefs() {
   if (prefs.topic !== 'all' && prefs.topic !== 'weak' && !(TOPICS[prefs.topic] && TOPICS[prefs.topic].subject === prefs.subject)) prefs.topic = 'all';
 }
@@ -947,7 +1031,8 @@ function renderProgress() {
   btn.textContent = w ? `Тренировать: ${TOPICS[w.id].name}` : 'Тренировать слабое';
   btn.dataset.id = w ? w.id : '';
   const n = prefs.mistakes.length;
-  $('#pnote').textContent = n ? `В копилке ошибок заданий: ${n}. Режим «Слабые места» вернёт их в игру.` : 'Копилка ошибок пока пуста.';
+  $('#pnote').textContent = (n ? `В копилке ошибок заданий: ${n}. Режим «Слабые места» вернёт их в игру. ` : 'Копилка ошибок пока пуста. ') +
+    `Сыграно матчей: ${prefs.matches.length}. Ты играешь как гость: результаты хранятся на этом устройстве и перенесутся в рейтинг после входа.`;
 }
 $('#btn-progress').addEventListener('click', () => { renderProgress(); show('progress'); });
 $('#btn-progress-back').addEventListener('click', () => { syncMenu(); show('menu'); });
@@ -1326,9 +1411,15 @@ function endMatch(reason) {
   if (list.length) list.forEach(t => box.appendChild(h('span', 'chip', t)));
   else box.appendChild(h('p', null, 'Ошибок нет. Чистая игра!'));
 
+  prefs.matches.push({
+    id: uid(), t: Date.now(), subject: M.subject, topic: M.topicMode, level: M.level, sport: M.sport, format: M.teamSize === 2 ? '2x2' : '1x1',
+    you: yp, foe: fp, outcome, correct: s.correct, wrong: s.wrong, timeouts: s.timeouts, sec: Math.round(M.clock),
+    byTopic: JSON.parse(JSON.stringify(M.byTopic)), sent: false
+  });
+  if (prefs.matches.length > MAX_MATCHES) prefs.matches.splice(0, prefs.matches.length - MAX_MATCHES);
   prefs.rec.played++; if (outcome === 'win') prefs.rec.wins++;
   prefs.rec.best[M.level] = Math.max(prefs.rec.best[M.level] || 0, M.me.pts);
-  savePrefs(); syncMenu();
+  savePrefs(); askPersist(); syncMenu();
   $('#btn-weak').hidden = !hasWeakStuff(M.subject);
   show('result');
 }
@@ -1377,6 +1468,28 @@ document.addEventListener('keydown', (e) => {
 document.addEventListener('visibilitychange', () => {
   if (document.hidden) { savePrefs(); if (M && !M.over) setPause(true); }
 });
+
+/* ---------- резервная копия ---------- */
+const b64 = (t) => btoa(unescape(encodeURIComponent(t)));
+const unb64 = (t) => decodeURIComponent(escape(atob(t)));
+$('#btn-backup-show').addEventListener('click', () => {
+  const box = $('#backup');
+  box.value = BACKUP_PREFIX + b64(JSON.stringify(exportData()));
+  box.focus(); box.select();
+  let copied = false;
+  try { if (navigator.clipboard) { navigator.clipboard.writeText(box.value); copied = true; } } catch (e) { /* ничего */ }
+  $('#backup-msg').textContent = copied ? 'Код скопирован. Сохрани его в заметки или отправь себе.' : 'Скопируй код вручную и сохрани.';
+});
+$('#btn-backup-load').addEventListener('click', () => {
+  const raw = $('#backup').value.trim();
+  try {
+    if (raw.indexOf(BACKUP_PREFIX) !== 0) throw new Error('prefix');
+    mergeData(JSON.parse(unb64(raw.slice(BACKUP_PREFIX.length))));
+    savePrefs(); renderProgress(); syncMenu();
+    $('#backup-msg').textContent = 'Готово: данные добавлены к текущим.';
+  } catch (e) { $('#backup-msg').textContent = 'Не получилось прочитать код. Вставь его целиком.'; }
+});
+window.addEventListener('pagehide', savePrefs);
 
 loadPrefs();
 syncMenu();

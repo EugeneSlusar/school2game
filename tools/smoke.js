@@ -29,6 +29,20 @@ const t0=Date.now();const pn=()=>(Date.now()-t0)*10;w.performance.now=pn;const r
   click('#btn-progress');console.log('progress rows',doc.querySelectorAll('.prow').length,$('#pnote').textContent);
   click('#btn-progress-back');
   console.log('coach:',$('#coach-text').textContent);
+  // сохранение и резервная копия
+  const stored=JSON.parse(w.localStorage.getItem('tablichny-sport-v1'));
+  console.log('stored matches',stored.matches.length,'guestId',!!stored.guestId);
+  if(stored.matches.length!==2)errs.push('matches not stored');
+  click('#btn-progress');click('#btn-backup-show');
+  const code=$('#backup').value;if(code.indexOf('S2G1:')!==0)errs.push('bad code');
+  click('#btn-reset');click('#btn-reset');
+  w.localStorage.setItem('tablichny-sport-v1',JSON.stringify({}));
+  const before=JSON.parse(w.localStorage.getItem('tablichny-sport-v1')).matches;
+  $('#backup').value=code;click('#btn-backup-load');
+  const after=JSON.parse(w.localStorage.getItem('tablichny-sport-v1'));
+  console.log('restored matches',after.matches.length,$('#backup-msg').textContent);
+  if(after.matches.length!==2)errs.push('restore failed');
+  $('#backup').value='S2G1:garbage';click('#btn-backup-load');console.log($('#backup-msg').textContent);
   console.log('errors:',errs);
   process.exit(errs.length?1:0);
 })();
