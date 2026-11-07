@@ -1,6 +1,6 @@
 {
   "appId": "ru.slusar.tablichnysport",
-  "appName": "Табличный спорт",
+  "appName": "school2game",
   "webDir": "www",
   "backgroundColor": "#f4f7fc",
   "android": { "adjustMarginsForEdgeToEdge": "force" }
