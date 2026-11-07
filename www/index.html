@@ -13,7 +13,7 @@
 @font-face{font-family:"Neucha";font-style:normal;font-weight:400;font-display:swap;src:url(fonts/neucha-latin-400-normal.woff2) format("woff2");unicode-range:U+0000-00FF,U+0131,U+0152-0153,U+02BB-02BC,U+02C6,U+02DA,U+02DC,U+0304,U+0308,U+0329,U+2000-206F,U+20AC,U+2122,U+2191,U+2193,U+2212,U+2215,U+FEFF,U+FFFD}
 
 /* Layout: one-screen school-notebook game. Squared paper (light) or chalkboard (dark) behind everything.
-   Blue ink = you, orange = opponent. Scoreboard block on top, tactics-diagram field, big keypad under the thumb. */
+   Blue ink = you, orange = opponent. Scoreboard block on top, tactics-diagram field, big keypad or answer buttons under the thumb. */
 :root{
   --paper:#f4f7fc;
   --grid:#d5e0f0;
@@ -154,6 +154,17 @@ button:focus-visible,summary:focus-visible{outline:3px solid var(--you);outline-
 .level .tick svg{width:10px;height:10px}
 .choice[aria-pressed="true"] .tick{display:grid}
 
+.tchips{display:flex;flex-wrap:wrap;gap:8px}
+.tchip{padding:8px 12px;color:var(--ink);background:var(--card);border:2px solid var(--ink);border-radius:999px;box-shadow:2px 2px 0 var(--shade);font:400 15px/1.1 var(--font-display);transition:transform .08s,box-shadow .08s}
+.tchip[aria-pressed="true"]{color:var(--on-you);background:var(--you);box-shadow:2px 2px 0 var(--ink)}
+.tchip:active{transform:translate(1px,1px)}
+.coach{display:flex;align-items:center;justify-content:space-between;gap:10px;margin-top:10px;padding:8px 12px;background:var(--card);border:2px dashed var(--shade);border-radius:12px;font-size:16px;line-height:1.2}
+.coach p{min-width:0;margin:0}
+.mini{flex:none;padding:8px 12px;color:var(--on-you);background:var(--you);border:2px solid var(--ink);border-radius:10px;box-shadow:0 3px 0 var(--ink);font:400 14px/1 var(--font-display)}
+.mini:active{transform:translateY(3px);box-shadow:0 0 0 var(--ink)}
+.linkbtn{width:100%;height:48px;color:var(--ink);background:var(--card);border:2px solid var(--ink);border-radius:14px;box-shadow:0 3px 0 var(--ink);font:400 16px/1 var(--font-display)}
+.linkbtn:active{transform:translateY(3px);box-shadow:0 0 0 var(--ink)}
+
 .rules{padding:8px 12px;background:var(--card);border:2px dashed var(--shade);border-radius:12px}
 .rules summary{cursor:pointer;font:400 14px/1.2 var(--font-display);letter-spacing:.04em}
 .rules ul{display:grid;gap:4px;margin:8px 0 2px;padding-left:20px}
@@ -209,11 +220,15 @@ button:focus-visible,summary:focus-visible{outline:3px solid var(--you);outline-
 @keyframes fall{from{opacity:1;transform:translate(0,0) rotate(0)}to{opacity:0;transform:translate(var(--x),150px) rotate(var(--r))}}
 
 /* ---------- question ---------- */
-.question{position:relative;display:flex;flex-direction:column;align-items:center;gap:10px}
+.question{position:relative;display:flex;flex-direction:column;align-items:center;gap:8px}
+.qtag{min-height:1.2em;font-size:16px;line-height:1.2;color:var(--ink-soft);text-align:center}
 .eq{min-height:1.5em;display:flex;flex-wrap:wrap;align-items:center;justify-content:center;column-gap:.35em;row-gap:4px;font:400 clamp(32px,10.5vw,46px)/1.15 var(--font-display);font-variant-numeric:tabular-nums;text-align:center}
 .eq.long{font-size:clamp(26px,8vw,36px)}
 .eq.ready{font-family:var(--font-hand);font-size:26px;color:var(--ink-soft)}
 .eq.ready .ansbox{display:none}
+.eq-text{font:400 clamp(34px,11vw,48px)/1.15 var(--font-display)}
+.eq-text.long{font:400 clamp(24px,7.6vw,31px)/1.25 var(--font-hand)}
+.gap{display:inline-block;width:1.5em;height:.9em;margin:0 .06em;vertical-align:-.05em;background:var(--you-soft);border-bottom:4px solid var(--you);border-radius:6px 6px 0 0}
 .ansbox{display:inline-grid;place-items:center;min-width:2.3em;height:1.3em;padding:0 .2em;color:var(--you);background:var(--you-soft);border:3px solid var(--you);border-radius:12px}
 .ansbox.empty::before{content:"?";color:var(--ink-soft)}
 .eq.shake{animation:shake .35s}
@@ -230,19 +245,24 @@ button:focus-visible,summary:focus-visible{outline:3px solid var(--you);outline-
 .track[data-zone="low"] .fill{background:var(--bad)}
 .worth{min-width:3.4em;text-align:right;font:400 20px/1 var(--font-display);font-variant-numeric:tabular-nums}
 
-/* ---------- keypad ---------- */
+/* ---------- keypad and answer buttons ---------- */
 .keypad{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;padding-bottom:2px}
 .key{height:clamp(46px,7.4vh,64px);display:grid;place-items:center;color:var(--ink);background:var(--card);border:2px solid var(--ink);border-radius:14px;box-shadow:0 4px 0 var(--ink);font:400 clamp(22px,3.6vh,28px)/1 var(--font-display);transition:transform .05s,box-shadow .05s}
 .key.down,.key:active{transform:translateY(4px);box-shadow:0 0 0 var(--ink)}
 .key svg{width:26px;height:26px;fill:none;stroke:currentColor;stroke-width:2.4;stroke-linecap:round;stroke-linejoin:round}
 .key.ok{color:var(--on-you);background:var(--you)}
 .keypad.locked .key{opacity:.45}
+.choices{display:grid;grid-template-columns:repeat(var(--n,2),1fr);gap:10px;padding-bottom:6px}
+.opt{min-height:clamp(60px,11vh,88px);padding:8px 10px;display:grid;place-items:center;color:var(--ink);background:var(--card);border:2px solid var(--ink);border-radius:16px;box-shadow:0 4px 0 var(--ink);font:400 clamp(24px,7.4vw,34px)/1.1 var(--font-display);overflow-wrap:anywhere;transition:transform .05s,box-shadow .05s}
+.opt.down,.opt:active{transform:translateY(4px);box-shadow:0 0 0 var(--ink)}
+.choices.locked .opt{opacity:.45}
 
-/* ---------- overlays, result ---------- */
+/* ---------- overlays, result, progress ---------- */
 .overlay{position:absolute;inset:0;z-index:5;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:12px;padding:24px;text-align:center;background:var(--veil);border-radius:16px}
 .overlay h2{margin:0 0 6px;font:400 34px/1 var(--font-display)}
 .btn{min-width:200px;height:52px;padding:0 20px;color:var(--ink);background:var(--card);border:2px solid var(--ink);border-radius:14px;box-shadow:0 4px 0 var(--ink);font:400 18px/1 var(--font-display)}
 .btn.primary{color:var(--on-you);background:var(--you)}
+.btn:disabled{opacity:.5;box-shadow:none;cursor:default}
 .res-head{display:grid;gap:4px;margin-top:6px;text-align:center}
 .res-head h2{margin:0;font:400 clamp(34px,11vw,48px)/1 var(--font-display)}
 .res-head h2[data-o="win"]{color:var(--good)}
@@ -251,13 +271,29 @@ button:focus-visible,summary:focus-visible{outline:3px solid var(--you);outline-
 .stats{display:grid;margin:0}
 .stats div{display:flex;justify-content:space-between;align-items:baseline;gap:10px;padding:8px 2px;border-bottom:2px dashed var(--shade)}
 .stats dt{font-size:18px}
-.stats dd{margin:0;font:400 20px/1 var(--font-display);font-variant-numeric:tabular-nums}
+.stats dd{margin:0;font:400 20px/1 var(--font-display);font-variant-numeric:tabular-nums;white-space:nowrap}
 .review h3{margin:0 0 8px;font:400 13px/1 var(--font-display);letter-spacing:.09em;text-transform:uppercase;color:var(--ink-soft)}
 .review p{margin:0;color:var(--ink-soft)}
+.coachline{margin:0;font-size:18px;text-align:center}
 .chips{display:flex;flex-wrap:wrap;gap:8px}
-.chip{padding:6px 10px;background:var(--card);border:2px solid var(--ink);border-radius:10px;font:400 16px/1.1 var(--font-display);font-variant-numeric:tabular-nums}
+.chip{max-width:100%;padding:6px 10px;background:var(--card);border:2px solid var(--ink);border-radius:10px;font:400 16px/1.15 var(--font-display);font-variant-numeric:tabular-nums;overflow-wrap:anywhere}
 .actions{position:sticky;bottom:0;margin-top:auto;display:grid;gap:10px;padding-top:14px;background:linear-gradient(to bottom,transparent,var(--paper) 35%)}
 .actions .btn{width:100%}
+.prow{display:grid;gap:6px;padding:10px 0;border-bottom:2px dashed var(--shade)}
+.ptop{display:flex;justify-content:space-between;align-items:center;gap:8px}
+.ptop b{font:400 18px/1.1 var(--font-display)}
+.tag{padding:3px 9px;border:2px solid currentColor;border-radius:999px;font:400 12px/1.2 var(--font-display);white-space:nowrap}
+.tag.weak{color:var(--bad)}
+.tag.mid{color:var(--foe)}
+.tag.good{color:var(--good)}
+.tag.few{color:var(--ink-soft)}
+.meter{height:12px;background:var(--card);border:2px solid var(--ink);border-radius:999px;overflow:hidden}
+.meter i{display:block;height:100%;background:var(--you)}
+.prow.weak .meter i{background:var(--bad)}
+.prow.mid .meter i{background:var(--foe)}
+.prow.good .meter i{background:var(--good)}
+.prow small{font-size:15px;color:var(--ink-soft)}
+.pnote{margin:0;font-size:16px;color:var(--ink-soft)}
 
 @media (max-height:700px){
   .board{padding:8px 10px}
@@ -267,7 +303,7 @@ button:focus-visible,summary:focus-visible{outline:3px solid var(--you);outline-
 @media (prefers-reduced-motion:reduce){
   .eq.shake,.pts.pop,.gain.show,.countdown.beat,.net.hit{animation:none}
   .shout.show{animation:shoutStill 1.1s linear}
-  .choice,.key,.cta,.btn{transition:none}
+  .choice,.key,.opt,.cta,.btn,.tchip{transition:none}
 }
 </style>
 </head>
@@ -281,8 +317,31 @@ button:focus-visible,summary:focus-visible{outline:3px solid var(--you);outline-
     <header class="brand">
       <h1>Табличный спорт</h1>
       <svg viewBox="0 0 150 10" aria-hidden="true"><path class="wave" d="M3 5 Q12 -1 21 5 T39 5 T57 5 T75 5 T93 5 T111 5 T129 5 T147 5"/></svg>
-      <p>Решай примеры на умножение быстрее соперника</p>
+      <p>Тренируй предметы и выигрывай матчи у соперника</p>
     </header>
+
+    <div class="group">
+      <h2>Предмет</h2>
+      <div class="row two">
+        <button type="button" class="choice" data-group="subject" data-v="math" aria-pressed="true">
+          <span class="tick" aria-hidden="true"><svg viewBox="0 0 12 12"><path d="M2.5 6.4l2.3 2.3 4.7-5"/></svg></span>
+          <b>Математика</b><small>умножение, деление</small>
+        </button>
+        <button type="button" class="choice" data-group="subject" data-v="rus" aria-pressed="false">
+          <span class="tick" aria-hidden="true"><svg viewBox="0 0 12 12"><path d="M2.5 6.4l2.3 2.3 4.7-5"/></svg></span>
+          <b>Русский язык</b><small>слова, ударения, -тся</small>
+        </button>
+      </div>
+    </div>
+
+    <div class="group">
+      <h2>Тема</h2>
+      <div class="tchips" id="topics"></div>
+      <div class="coach">
+        <p id="coach-text"></p>
+        <button type="button" class="mini" id="btn-coach" hidden>Выбрать</button>
+      </div>
+    </div>
 
     <div class="group">
       <h2>Вид спорта</h2>
@@ -330,18 +389,20 @@ button:focus-visible,summary:focus-visible{outline:3px solid var(--you);outline-
       <div class="row three">
         <button type="button" class="choice level" data-group="level" data-v="easy" aria-pressed="false">
           <span class="tick" aria-hidden="true"><svg viewBox="0 0 12 12"><path d="M2.5 6.4l2.3 2.3 4.7-5"/></svg></span>
-          <b>Лёгкий</b><small>таблица 2–5</small><small>10 с на пример</small>
+          <b>Лёгкий</b><small class="l1"></small><small class="l2"></small>
         </button>
         <button type="button" class="choice level" data-group="level" data-v="medium" aria-pressed="true">
           <span class="tick" aria-hidden="true"><svg viewBox="0 0 12 12"><path d="M2.5 6.4l2.3 2.3 4.7-5"/></svg></span>
-          <b>Средний</b><small>до 10 × 10</small><small>7 с на пример</small>
+          <b>Средний</b><small class="l1"></small><small class="l2"></small>
         </button>
         <button type="button" class="choice level" data-group="level" data-v="hard" aria-pressed="false">
           <span class="tick" aria-hidden="true"><svg viewBox="0 0 12 12"><path d="M2.5 6.4l2.3 2.3 4.7-5"/></svg></span>
-          <b>Сложный</b><small>до 12 × 12, хитрые примеры</small><small>5 с на пример</small>
+          <b>Сложный</b><small class="l1"></small><small class="l2"></small>
         </button>
       </div>
     </div>
+
+    <button type="button" class="linkbtn" id="btn-progress">Мой прогресс</button>
 
     <details class="rules">
       <summary>Как считаются очки</summary>
@@ -349,9 +410,11 @@ button:focus-visible,summary:focus-visible{outline:3px solid var(--you);outline-
         <li>Верный ответ: +1 очко.</li>
         <li>Ответил в первую половину времени: ещё +1.</li>
         <li>Три верных подряд: гол или бросок, +3.</li>
-        <li>Ошибка или конец времени обрывает серию. После ошибки кнопки замирают на 1 секунду.</li>
+        <li>Ошибка или конец времени обрывает серию.</li>
+        <li>В математике после ошибки кнопки замирают на 1 секунду и можно ответить снова. В русском языке после ошибки показывается верный ответ и идёт следующий вопрос.</li>
         <li>Матч идёт 2 минуты или до 50 очков на игрока.</li>
-        <li>На сложном уровне бывают примеры вида 3 × ? = 24 и 7 × 8 + 6, на них даётся чуть больше времени.</li>
+        <li>Режим «Слабые места» чаще даёт темы, где ты ошибаешься, и повторяет твои прошлые ошибки.</li>
+        <li>На сложном уровне по математике бывают примеры вида 3 × ? = 24 и 7 × 8 + 6, на них даётся чуть больше времени.</li>
       </ul>
     </details>
 
@@ -392,7 +455,8 @@ button:focus-visible,summary:focus-visible{outline:3px solid var(--you);outline-
     </div>
 
     <div class="question">
-      <div class="eq ready" id="eq"><span id="eq-pre">Приготовься</span><span class="ansbox empty" id="ans"><span id="ans-text"></span></span><span id="eq-post" hidden></span></div>
+      <div class="qtag" id="qtag"></div>
+      <div class="eq ready" id="eq"><span id="eq-pre">Приготовься</span><span class="eq-text" id="eq-text" hidden></span><span class="ansbox empty" id="ans"><span id="ans-text"></span></span><span id="eq-post" hidden></span></div>
       <div class="gain" id="gain" aria-hidden="true"></div>
       <div class="timer">
         <div class="track" id="track" data-zone="fast"><div class="fill" id="fill"></div></div>
@@ -414,6 +478,7 @@ button:focus-visible,summary:focus-visible{outline:3px solid var(--you);outline-
       <button type="button" class="key" data-k="0">0</button>
       <button type="button" class="key ok" data-k="ok" aria-label="Ответить"><svg viewBox="0 0 24 24"><path d="M5 12.5l4.5 4.5L19 7"/></svg></button>
     </div>
+    <div class="choices locked" id="choices" hidden></div>
 
     <div class="overlay" id="pause" hidden>
       <h2>Пауза</h2>
@@ -446,12 +511,34 @@ button:focus-visible,summary:focus-visible{outline:3px solid var(--you);outline-
       <div><dt>Самый быстрый ответ</dt><dd id="st-fast">—</dd></div>
     </dl>
     <div class="review">
+      <h3>По темам</h3>
+      <dl class="stats" id="res-topics"></dl>
+    </div>
+    <p class="coachline" id="res-coach"></p>
+    <div class="review">
       <h3>Ошибки для повторения</h3>
       <div class="chips" id="review"></div>
     </div>
     <div class="actions">
       <button type="button" class="btn primary" id="btn-rematch">Реванш</button>
+      <button type="button" class="btn" id="btn-weak" hidden>Подтянуть слабое</button>
       <button type="button" class="btn" id="btn-menu">В меню</button>
+    </div>
+  </section>
+
+  <!-- ===== Мой прогресс ===== -->
+  <section class="screen" id="screen-progress" hidden>
+    <header class="brand">
+      <h1>Мой прогресс</h1>
+      <svg viewBox="0 0 150 10" aria-hidden="true"><path class="wave" d="M3 5 Q12 -1 21 5 T39 5 T57 5 T75 5 T93 5 T111 5 T129 5 T147 5"/></svg>
+      <p>Что получается, а что подтянуть. Считаются последние 30 вопросов по каждой теме.</p>
+    </header>
+    <div id="progress-body"></div>
+    <p class="pnote" id="pnote"></p>
+    <div class="actions">
+      <button type="button" class="btn primary" id="btn-train-weak">Тренировать слабое</button>
+      <button type="button" class="btn" id="btn-reset">Сбросить прогресс</button>
+      <button type="button" class="btn" id="btn-progress-back">В меню</button>
     </div>
   </section>
 
@@ -467,14 +554,165 @@ const POINTS_PER_PLAYER = 50;   // цель на одного игрока (в 2
 const SHOT_BONUS = 3;           // гол / бросок за каждый третий верный подряд
 const FAST_SHARE = 0.5;         // быстрый ответ: в первую половину времени
 const LOCK_SECONDS = 1;         // пауза кнопок после ошибки
+const MIN_DATA = 8;             // сколько ответов нужно, чтобы оценивать тему
+const WINDOW = 30;              // сколько последних ответов по теме помним
+const REPEAT_SHARE = 0.35;      // в режиме «Слабые места»: доля повторов прошлых ошибок
+const MAX_MISTAKES = 30;
 const STORE_KEY = 'tablichny-sport-v1';
 const REDUCED = !!(window.matchMedia && matchMedia('(prefers-reduced-motion: reduce)').matches);
 
+/*==GEN-START==*/
 const LEVELS = {
-  easy:   { name: 'Лёгкий',  limit: 10, bot: { mean: 6.0, sd: 1.6, min: 2.5, acc: 0.72 } },
-  medium: { name: 'Средний', limit: 7,  bot: { mean: 4.6, sd: 1.3, min: 2.2, acc: 0.85 } },
-  hard:   { name: 'Сложный', limit: 5,  bot: { mean: 3.9, sd: 1.1, min: 2.0, acc: 0.90 } }
+  easy:   { name: 'Лёгкий',  limit: 10, limitChoice: 12, bot: { mean: 6.0, sd: 1.6, min: 2.5, acc: 0.72 } },
+  medium: { name: 'Средний', limit: 7,  limitChoice: 9,  bot: { mean: 4.6, sd: 1.3, min: 2.2, acc: 0.85 } },
+  hard:   { name: 'Сложный', limit: 5,  limitChoice: 7,  bot: { mean: 3.9, sd: 1.1, min: 2.0, acc: 0.90 } }
 };
+const TIERS = { easy: [1], medium: [1, 2], hard: [2, 3] };
+
+function mulberry32(a) { return function () { a |= 0; a = a + 0x6D2B79F5 | 0; let t = Math.imul(a ^ a >>> 15, 1 | a); t = t + Math.imul(t ^ t >>> 7, 61 | t) ^ t; return ((t ^ t >>> 14) >>> 0) / 4294967296; }; }
+const ri = (rng, a, b) => a + Math.floor(rng() * (b - a + 1));
+const rpick = (rng, arr) => arr[Math.floor(rng() * arr.length)];
+function rshuffle(rng, arr) { const a = arr.slice(); for (let i = a.length - 1; i > 0; i--) { const j = Math.floor(rng() * (i + 1)); const t = a[i]; a[i] = a[j]; a[j] = t; } return a; }
+
+/* словарные слова: [слово с пропуском, верная буква, варианты, сложность 1–3] */
+const VOWEL = [
+  ['к_рабль', 'о', 'оа', 1], ['к_пуста', 'а', 'ао', 1], ['р_кета', 'а', 'ао', 1], ['п_ртрет', 'о', 'оа', 1],
+  ['т_лефон', 'е', 'еи', 1], ['в_кзал', 'о', 'оа', 1], ['б_гаж', 'а', 'ао', 1], ['л_нейка', 'и', 'ие', 1],
+  ['м_нута', 'и', 'ие', 1], ['ф_нтан', 'о', 'оа', 1], ['к_стюм', 'о', 'оа', 1], ['с_лют', 'а', 'ао', 1],
+  ['п_норама', 'а', 'ао', 2], ['ч_мпион', 'е', 'еи', 2], ['д_ректор', 'и', 'ие', 2], ['ж_лет', 'и', 'ие', 2],
+  ['г_рмония', 'а', 'ао', 2], ['к_лендарь', 'а', 'ао', 2], ['т_атр', 'е', 'еи', 2], ['ц_мент', 'е', 'еи', 2],
+  ['в_лосипед', 'е', 'еи', 2], ['г_ография', 'е', 'еи', 2], ['м_ханик', 'е', 'еи', 2], ['к_лонна', 'о', 'оа', 2],
+  ['ш_ссе', 'о', 'оа', 2], ['тр_ктор', 'а', 'ао', 2], ['г_ризонт', 'о', 'оа', 2], ['т_мпература', 'е', 'еи', 2],
+  ['к_мпьютер', 'о', 'оа', 2], ['к_нфета', 'о', 'оа', 2],
+  ['м_ридиан', 'е', 'еи', 3], ['с_ртировка', 'о', 'оа', 3], ['п_ссажир', 'а', 'ао', 3], ['к_нцерт', 'о', 'оа', 3],
+  ['л_боратория', 'а', 'ао', 3], ['пр_фессия', 'о', 'оа', 3], ['п_нсионер', 'е', 'еи', 3], ['с_кретарь', 'е', 'еи', 3],
+  ['ч_мпионат', 'е', 'еи', 3], ['р_портёр', 'е', 'еи', 3]
+];
+/* ударения: ударная гласная написана заглавной, затем сложность */
+const STRESS = [
+  ['звонИт', 1], ['тОрты', 1], ['бАнты', 1], ['шАрфы', 1], ['кУхонный', 1], ['договОр', 1],
+  ['каталОг', 1], ['квартАл', 1], ['красИвее', 1], ['портфЕль', 1], ['тУфля', 1], ['алфавИт', 1],
+  ['цепОчка', 2], ['щавЕль', 2], ['столЯр', 2], ['нАчал', 2], ['пОнял', 2], ['создАл', 2],
+  ['включИт', 2], ['облегчИть', 2], ['киломЕтр', 2], ['слИвовый', 2], ['Искра', 2], ['ломОть', 2],
+  ['баловАть', 2], ['хАос', 2], ['экспЕрт', 2], ['позвонИт', 2], ['срЕдства', 2],
+  ['аэропОрты', 3], ['апострОф', 3], ['бухгАлтеров', 3], ['гражданствО', 3], ['добелА', 3], ['дремОта', 3],
+  ['жалюзИ', 3], ['заимЕть', 3], ['зевОта', 3], ['каучУк', 3], ['мусоропровОд', 3], ['платО', 3],
+  ['рвОта', 3], ['украИнский', 3]
+];
+/* -тся или -ться: [предложение с пропуском, окончание, сложность] */
+const TSYA = [
+  ['Дети любят купа_ в реке.', 'ться', 1], ['Мальчик хорошо учи_ в школе.', 'тся', 1],
+  ['Пора собира_ в дорогу.', 'ться', 1], ['Она всегда улыбае_ при встрече.', 'тся', 1],
+  ['Надо стара_ изо всех сил.', 'ться', 1], ['Солнце скрывае_ за тучей.', 'тся', 1],
+  ['Мы идём купа_ на озеро.', 'ться', 1], ['Дверь сама открывае_.', 'тся', 1],
+  ['Ему не хочется расстава_ с другом.', 'ться', 2], ['Лодка раскачивае_ на волнах.', 'тся', 2],
+  ['Не бойся встреча_ с трудностями.', 'ться', 2], ['Книга читае_ с интересом.', 'тся', 2],
+  ['Ребята стараю_ не опаздывать.', 'тся', 2], ['Эта задача легко решае_.', 'тся', 2],
+  ['Чтобы не простуди_, надень шапку.', 'ться', 2],
+  ['Он стреми_ к победе.', 'тся', 3], ['Путешественникам предстоит пробира_ сквозь джунгли.', 'ться', 3],
+  ['Мальчик не любит ссори_ с друзьями.', 'ться', 3], ['Погода быстро меняе_.', 'тся', 3],
+  ['Урок начинае_ в девять часов.', 'тся', 3]
+];
+const VOWELS = 'аеёиоуыэюя';
+
+const numQ = (pre, post, ans, full, form, extra) => ({ kind: 'num', form: form || 'plain', pre, post, ans, full, extra: extra || 0 });
+
+function genMul(rng, level) {
+  if (level === 'easy') {
+    let a = ri(rng, 2, 5), b = ri(rng, 2, 9);
+    if (rng() < 0.5) { const t = a; a = b; b = t; }
+    return numQ(`${a} × ${b} =`, '', a * b, `${a} × ${b} = ${a * b}`);
+  }
+  if (level === 'medium') {
+    const a = ri(rng, 2, 10), b = ri(rng, 2, 10);
+    return numQ(`${a} × ${b} =`, '', a * b, `${a} × ${b} = ${a * b}`);
+  }
+  const r = rng();
+  if (r < 0.55) {
+    const a = ri(rng, 2, 12), b = ri(rng, 2, 12);
+    return numQ(`${a} × ${b} =`, '', a * b, `${a} × ${b} = ${a * b}`);
+  }
+  if (r < 0.80) {
+    const a = ri(rng, 2, 12), b = ri(rng, 2, 12), c = a * b, full = `${a} × ${b} = ${c}`;
+    return rng() < 0.5 ? numQ(`${a} ×`, `= ${c}`, b, full, 'miss', 1) : numQ('', `× ${b} = ${c}`, a, full, 'miss', 1);
+  }
+  const a = ri(rng, 3, 12), b = ri(rng, 3, 12), c = ri(rng, 2, 9), v = a * b + c;
+  return numQ(`${a} × ${b} + ${c} =`, '', v, `${a} × ${b} + ${c} = ${v}`, 'comp', 3);
+}
+function genDiv(rng, level) {
+  const dmax = level === 'easy' ? 5 : level === 'medium' ? 10 : 12;
+  const qmax = level === 'easy' ? 9 : level === 'medium' ? 10 : 12;
+  if (level !== 'hard' || rng() < 0.55) {
+    const d = ri(rng, 2, dmax), q = ri(rng, 2, qmax), n = d * q;
+    return numQ(`${n} ÷ ${d} =`, '', q, `${n} ÷ ${d} = ${q}`);
+  }
+  if (rng() < 0.5) {
+    const d = ri(rng, 2, 12), q = ri(rng, 2, 12), n = d * q;
+    return numQ(`${n} ÷`, `= ${q}`, d, `${n} ÷ ${d} = ${q}`, 'miss', 1);
+  }
+  const d = ri(rng, 3, 12), q = ri(rng, 3, 12), c = ri(rng, 2, 9), n = d * q;
+  return numQ(`${n} ÷ ${d} + ${c} =`, '', q + c, `${n} ÷ ${d} + ${c} = ${q + c}`, 'comp', 3);
+}
+function genVowel(rng, level) {
+  const pool = VOWEL.filter(it => TIERS[level].indexOf(it[3]) >= 0);
+  const it = rpick(rng, pool);
+  const options = rshuffle(rng, it[2].split(''));
+  const word = it[0].replace('_', it[1]);
+  return { kind: 'choice', prompt: it[0], options, ans: options.indexOf(it[1]), full: word, fix: word, extra: 0 };
+}
+function genStress(rng, level) {
+  const pool = STRESS.filter(it => TIERS[level].indexOf(it[1]) >= 0);
+  const src = rpick(rng, pool)[0];
+  const base = src.toLowerCase();
+  let idx = -1;
+  for (let i = 0; i < src.length; i++) if (src[i] !== base[i]) { idx = i; break; }
+  const others = [];
+  for (let i = 0; i < base.length; i++) if (VOWELS.indexOf(base[i]) >= 0 && i !== idx) others.push(i);
+  const mk = (i) => base.slice(0, i) + base[i].toUpperCase() + base.slice(i + 1);
+  const right = mk(idx), wrong = mk(rpick(rng, others));
+  const options = rshuffle(rng, [right, wrong]);
+  return { kind: 'choice', prompt: 'Выбери верное ударение', options, ans: options.indexOf(right), full: right, fix: right, extra: 0 };
+}
+function genTsya(rng, level) {
+  const pool = TSYA.filter(it => TIERS[level].indexOf(it[2]) >= 0);
+  const it = rpick(rng, pool);
+  const options = rshuffle(rng, ['-тся', '-ться']);
+  const key = '-' + it[1];
+  return { kind: 'choice', prompt: it[0], options, ans: options.indexOf(key), full: it[0].replace('_', it[1]), fix: key, extra: 0 };
+}
+
+const SUBJECTS = {
+  math: { name: 'Математика',   kind: 'num',    topics: ['mul', 'div'],                   botScale: 1 },
+  rus:  { name: 'Русский язык', kind: 'choice', topics: ['vowel', 'stress', 'tsya'],      botScale: 1.15 }
+};
+const TOPICS = {
+  mul:    { subject: 'math', name: 'Умножение',        tag: 'Умножение',                         gen: genMul },
+  div:    { subject: 'math', name: 'Деление',          tag: 'Деление',                           gen: genDiv },
+  vowel:  { subject: 'rus',  name: 'Словарные слова',  tag: 'Вставь пропущенную букву',          gen: genVowel },
+  stress: { subject: 'rus',  name: 'Ударения',         tag: 'Где ударение?',                     gen: genStress },
+  tsya:   { subject: 'rus',  name: '-тся или -ться',   tag: 'Выбери правильное окончание',       gen: genTsya }
+};
+const baseLimit = (level, subject) => SUBJECTS[subject].kind === 'choice' ? LEVELS[level].limitChoice : LEVELS[level].limit;
+
+function makeQuestion(rng, level, topicId, prev) {
+  const T = TOPICS[topicId];
+  let q = null;
+  for (let i = 0; i < 30; i++) {
+    q = T.gen(rng, level);
+    q.topic = topicId;
+    q.limit = (q.kind === 'choice' ? LEVELS[level].limitChoice : LEVELS[level].limit) + (q.extra || 0);
+    if (!prev || q.full !== prev.full) break;
+  }
+  return q;
+}
+/*==GEN-END==*/
+
+const LEVEL_LINES = {
+  math: { easy: ['множители 2–5', '10 с на пример'], medium: ['до 10 × 10', '7 с на пример'], hard: ['до 12 × 12, хитрые примеры', '5 с на пример'] },
+  rus:  { easy: ['простые слова', '12 с на вопрос'], medium: ['слова посложнее', '9 с на вопрос'], hard: ['самые хитрые', '7 с на вопрос'] }
+};
+const STATUS_TEXT = { weak: 'хромает', mid: 'подтянуть', good: 'хорошо', few: 'мало данных' };
+
 const SPORTS = {
   football:   { name: 'Футбол',    shout: 'ГОЛ!',       act: 'гол' },
   basketball: { name: 'Баскетбол', shout: 'В КОРЗИНУ!', act: 'бросок' }
@@ -491,19 +729,37 @@ const GEO = {
 const $ = (s, r = document) => r.querySelector(s);
 const $$ = (s, r = document) => Array.from(r.querySelectorAll(s));
 const pick = (arr) => arr[Math.floor(Math.random() * arr.length)];
-const shuffle = (arr) => { const a = arr.slice(); for (let i = a.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [a[i], a[j]] = [a[j], a[i]]; } return a; };
+const shuffle = (arr) => { const a = arr.slice(); for (let i = a.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); const t = a[i]; a[i] = a[j]; a[j] = t; } return a; };
 const gauss = () => { let u = 0; while (u === 0) u = Math.random(); const v = Math.random(); return Math.sqrt(-2 * Math.log(u)) * Math.cos(2 * Math.PI * v); };
-function mulberry32(a) { return function () { a |= 0; a = a + 0x6D2B79F5 | 0; let t = Math.imul(a ^ a >>> 15, 1 | a); t = t + Math.imul(t ^ t >>> 7, 61 | t) ^ t; return ((t ^ t >>> 14) >>> 0) / 4294967296; }; }
-const ri = (rng, a, b) => a + Math.floor(rng() * (b - a + 1));
 const restart = (node, cls) => { node.classList.remove(cls); node.getBoundingClientRect(); node.classList.add(cls); };
 const fmt = (s) => { const t = Math.ceil(s); return Math.floor(t / 60) + ':' + String(t % 60).padStart(2, '0'); };
+const h = (tag, cls, text) => { const n = document.createElement(tag); if (cls) n.className = cls; if (text != null) n.textContent = text; return n; };
+const dec = (x) => x.toFixed(1).replace('.', ',');
 
-/* ---------- сохранённые настройки и рекорды ---------- */
-const prefs = { sport: 'football', format: '1x1', level: 'medium', rec: { best: { easy: 0, medium: 0, hard: 0 }, played: 0, wins: 0 } };
+/* ---------- сохранённые настройки, статистика, ошибки ---------- */
+const prefs = {
+  subject: 'math', topic: 'all', sport: 'football', format: '1x1', level: 'medium',
+  rec: { best: { easy: 0, medium: 0, hard: 0 }, played: 0, wins: 0 },
+  stats: {}, mistakes: []
+};
+function cleanMistake(m) {
+  if (!m || !TOPICS[m.topic] || typeof m.full !== 'string') return null;
+  const q = { topic: m.topic, kind: m.kind === 'choice' ? 'choice' : 'num', form: String(m.form || 'plain'), full: m.full, extra: +m.extra || 0, ans: +m.ans };
+  if (!isFinite(q.ans)) return null;
+  if (q.kind === 'num') { q.pre = String(m.pre || ''); q.post = String(m.post || ''); }
+  else {
+    if (!Array.isArray(m.options) || m.options.length < 2 || typeof m.prompt !== 'string') return null;
+    q.options = m.options.map(String); q.prompt = m.prompt; q.fix = String(m.fix || m.full);
+    if (q.ans < 0 || q.ans >= q.options.length) return null;
+  }
+  return q;
+}
 function loadPrefs() {
   try {
     const o = JSON.parse(localStorage.getItem(STORE_KEY) || 'null');
     if (!o) return;
+    if (SUBJECTS[o.subject]) prefs.subject = o.subject;
+    if (o.topic) prefs.topic = String(o.topic);
     if (SPORTS[o.sport]) prefs.sport = o.sport;
     if (o.format === '1x1' || o.format === '2x2') prefs.format = o.format;
     if (LEVELS[o.level]) prefs.level = o.level;
@@ -512,41 +768,56 @@ function loadPrefs() {
       prefs.rec.wins = +o.rec.wins || 0;
       for (const k of Object.keys(LEVELS)) prefs.rec.best[k] = +(o.rec.best && o.rec.best[k]) || 0;
     }
+    if (o.stats) {
+      for (const id of Object.keys(TOPICS)) {
+        const s = o.stats[id];
+        if (s && Array.isArray(s.recent)) {
+          prefs.stats[id] = {
+            recent: s.recent.filter(r => Array.isArray(r) && isFinite(r[1])).map(r => [r[0] ? 1 : 0, +r[1]]).slice(-WINDOW),
+            total: +s.total || 0
+          };
+        }
+      }
+    }
+    if (Array.isArray(o.mistakes)) prefs.mistakes = o.mistakes.map(cleanMistake).filter(Boolean).slice(-MAX_MISTAKES);
   } catch (e) { /* хранилище недоступно */ }
 }
 function savePrefs() { try { localStorage.setItem(STORE_KEY, JSON.stringify(prefs)); } catch (e) { /* ничего */ } }
-
-/* ---------- примеры ---------- */
-function mul(a, b) { return { kind: 'mul', pre: `${a} × ${b} =`, post: '', ans: a * b, full: `${a} × ${b} = ${a * b}` }; }
-function makeQuestion(rng, level, prev) {
-  const base = LEVELS[level].limit;
-  let q = null;
-  for (let i = 0; i < 30; i++) {
-    if (level === 'easy') {
-      let a = ri(rng, 2, 5), b = ri(rng, 2, 9);
-      if (rng() < 0.5) { const t = a; a = b; b = t; }
-      q = mul(a, b);
-    } else if (level === 'medium') {
-      q = mul(ri(rng, 2, 10), ri(rng, 2, 10));
-    } else {
-      const r = rng();
-      if (r < 0.55) {
-        q = mul(ri(rng, 2, 12), ri(rng, 2, 12));
-      } else if (r < 0.80) {
-        const a = ri(rng, 2, 12), b = ri(rng, 2, 12), c = a * b;
-        q = rng() < 0.5
-          ? { kind: 'miss', pre: `${a} ×`, post: `= ${c}`, ans: b, full: `${a} × ${b} = ${c}` }
-          : { kind: 'miss', pre: '', post: `× ${b} = ${c}`, ans: a, full: `${a} × ${b} = ${c}` };
-      } else {
-        const a = ri(rng, 3, 12), b = ri(rng, 3, 12), c = ri(rng, 2, 9), v = a * b + c;
-        q = { kind: 'comp', pre: `${a} × ${b} + ${c} =`, post: '', ans: v, full: `${a} × ${b} + ${c} = ${v}` };
-      }
-    }
-    q.limit = base + (q.kind === 'miss' ? 1 : q.kind === 'comp' ? 3 : 0);
-    if (!prev || q.full !== prev.full) break;
-  }
-  return q;
+function normalizePrefs() {
+  if (prefs.topic !== 'all' && prefs.topic !== 'weak' && !(TOPICS[prefs.topic] && TOPICS[prefs.topic].subject === prefs.subject)) prefs.topic = 'all';
 }
+
+function topicStat(id) {
+  const s = prefs.stats[id];
+  if (!s || !s.recent.length) return { n: 0, acc: null, avg: null, total: s ? s.total : 0 };
+  const n = s.recent.length, ok = s.recent.filter(r => r[0] === 1);
+  return { n, acc: ok.length / n, avg: ok.length ? ok.reduce((a, r) => a + r[1], 0) / ok.length : null, total: s.total };
+}
+const statusOf = (st) => st.n < MIN_DATA ? 'few' : st.acc < 0.7 ? 'weak' : st.acc < 0.88 ? 'mid' : 'good';
+function weakest() {
+  let best = null;
+  for (const id of Object.keys(TOPICS)) {
+    const st = topicStat(id), s = statusOf(st);
+    if ((s === 'weak' || s === 'mid') && (!best || st.acc < best.acc)) best = { id, acc: st.acc };
+  }
+  return best;
+}
+const mistakesFor = (subject) => prefs.mistakes.filter(m => TOPICS[m.topic].subject === subject);
+function hasWeakStuff(subject) {
+  if (mistakesFor(subject).length) return true;
+  return SUBJECTS[subject].topics.some(id => { const s = statusOf(topicStat(id)); return s === 'weak' || s === 'mid'; });
+}
+function snap(q) {
+  const o = { topic: q.topic, kind: q.kind, form: q.form, full: q.full, extra: q.extra, ans: q.ans };
+  if (q.kind === 'num') { o.pre = q.pre; o.post = q.post; } else { o.prompt = q.prompt; o.options = q.options.slice(); o.fix = q.fix; }
+  return o;
+}
+function addMistake(q) {
+  if (prefs.mistakes.some(m => m.topic === q.topic && m.full === q.full)) return;
+  prefs.mistakes.push(snap(q));
+  if (prefs.mistakes.length > MAX_MISTAKES) prefs.mistakes.shift();
+}
+function removeMistake(q) { prefs.mistakes = prefs.mistakes.filter(m => !(m.topic === q.topic && m.full === q.full)); }
 
 /* ---------- разметка полей ---------- */
 const footballBody = `
@@ -585,8 +856,8 @@ const el = {
   foeLabel: $('#foe-label'), foePts: $('#foe-pts'), foeSub: $('#foe-sub'),
   clock: $('#clock'), target: $('#target'), field: $('#field'), pips: $('#pips'),
   toast: $('#toast'), countdown: $('#countdown'), shout: $('#shout'), conf: $('#conf'), gain: $('#gain'),
-  eq: $('#eq'), pre: $('#eq-pre'), post: $('#eq-post'), ans: $('#ans'), ansText: $('#ans-text'),
-  track: $('#track'), fill: $('#fill'), worth: $('#worth'), keypad: $('#keypad'), pause: $('#pause')
+  eq: $('#eq'), pre: $('#eq-pre'), text: $('#eq-text'), post: $('#eq-post'), ans: $('#ans'), ansText: $('#ans-text'), qtag: $('#qtag'),
+  track: $('#track'), fill: $('#fill'), worth: $('#worth'), keypad: $('#keypad'), choices: $('#choices'), pause: $('#pause')
 };
 let M = null;                 // состояние матча
 let ballEl = null, netEl = null;
@@ -594,18 +865,108 @@ const ball = { x: 0, y: 0, rot: 0 };
 
 /* ---------- экраны и меню ---------- */
 function show(name) {
-  for (const n of ['menu', 'match', 'result']) $('#screen-' + n).hidden = n !== name;
+  for (const n of ['menu', 'match', 'result', 'progress']) $('#screen-' + n).hidden = n !== name;
   $('#screen-' + name).scrollTop = 0;
 }
+let topicsFor = '';
+function renderTopics() {
+  if (topicsFor === prefs.subject) return;
+  topicsFor = prefs.subject;
+  const box = $('#topics'); box.textContent = '';
+  const items = [['all', 'Все темы']].concat(SUBJECTS[prefs.subject].topics.map(id => [id, TOPICS[id].name]), [['weak', 'Слабые места']]);
+  items.forEach(([id, label]) => {
+    const b = h('button', 'tchip', label); b.type = 'button'; b.dataset.group = 'topic'; b.dataset.v = id; box.appendChild(b);
+  });
+}
+function renderCoach() {
+  const w = weakest(), p = $('#coach-text'), btn = $('#btn-coach');
+  if (w) {
+    p.textContent = `Хромает: ${TOPICS[w.id].name}, ${Math.round(w.acc * 100)}% верных.`;
+    btn.hidden = false; btn.dataset.id = w.id;
+  } else {
+    p.textContent = 'Сыграй несколько матчей, и игра подскажет, что подтянуть.';
+    btn.hidden = true;
+  }
+}
 function syncMenu() {
+  normalizePrefs();
+  renderTopics();
   $$('[data-group]').forEach(b => b.setAttribute('aria-pressed', String(prefs[b.dataset.group] === b.dataset.v)));
-  $('#summary').textContent = `${SPORTS[prefs.sport].name} · ${prefs.format === '1x1' ? '1 × 1' : '2 × 2'} · ${LEVELS[prefs.level].name}`;
+  $$('.level').forEach(b => {
+    const L = LEVEL_LINES[prefs.subject][b.dataset.v];
+    $('.l1', b).textContent = L[0]; $('.l2', b).textContent = L[1];
+  });
+  const topicName = prefs.topic === 'all' ? 'все темы' : prefs.topic === 'weak' ? 'слабые места' : TOPICS[prefs.topic].name;
+  $('#summary').textContent = `${SUBJECTS[prefs.subject].name} · ${topicName} · ${SPORTS[prefs.sport].name} · ${prefs.format === '1x1' ? '1 × 1' : '2 × 2'} · ${LEVELS[prefs.level].name}`;
   const r = prefs.rec;
   $('#records').textContent = r.played
     ? `Лучший счёт: ${Object.keys(LEVELS).map(k => `${LEVELS[k].name} ${r.best[k] || '—'}`).join(' · ')}. Побед: ${r.wins} из ${r.played}.`
     : 'Сыграй первый матч, и здесь появятся рекорды.';
+  renderCoach();
 }
-$$('[data-group]').forEach(b => b.addEventListener('click', () => { prefs[b.dataset.group] = b.dataset.v; syncMenu(); savePrefs(); }));
+$('#screen-menu').addEventListener('click', (e) => {
+  const b = e.target.closest('[data-group]');
+  if (!b) return;
+  const g = b.dataset.group;
+  prefs[g] = b.dataset.v;
+  if (g === 'subject') prefs.topic = 'all';
+  syncMenu(); savePrefs();
+});
+$('#btn-coach').addEventListener('click', () => {
+  const id = $('#btn-coach').dataset.id;
+  if (!TOPICS[id]) return;
+  prefs.subject = TOPICS[id].subject; prefs.topic = id;
+  syncMenu(); savePrefs();
+});
+
+/* ---------- экран «Мой прогресс» ---------- */
+function renderProgress() {
+  const body = $('#progress-body'); body.textContent = '';
+  for (const sid of Object.keys(SUBJECTS)) {
+    const grp = h('section', 'group');
+    grp.appendChild(h('h2', null, SUBJECTS[sid].name));
+    for (const id of SUBJECTS[sid].topics) {
+      const st = topicStat(id), s = statusOf(st);
+      const row = h('div', 'prow ' + s);
+      const top = h('div', 'ptop');
+      top.appendChild(h('b', null, TOPICS[id].name));
+      top.appendChild(h('span', 'tag ' + s, STATUS_TEXT[s]));
+      row.appendChild(top);
+      const meter = h('div', 'meter'), fill = h('i');
+      fill.style.width = st.n ? Math.round(st.acc * 100) + '%' : '0%';
+      meter.appendChild(fill); row.appendChild(meter);
+      row.appendChild(h('small', null, st.n
+        ? `${Math.round(st.acc * 100)}% верных · ${st.avg == null ? '—' : dec(st.avg) + ' с'} · всего ${st.total}`
+        : 'Пока нет данных'));
+      grp.appendChild(row);
+    }
+    body.appendChild(grp);
+  }
+  const w = weakest(), btn = $('#btn-train-weak');
+  btn.disabled = !w;
+  btn.textContent = w ? `Тренировать: ${TOPICS[w.id].name}` : 'Тренировать слабое';
+  btn.dataset.id = w ? w.id : '';
+  const n = prefs.mistakes.length;
+  $('#pnote').textContent = n ? `В копилке ошибок заданий: ${n}. Режим «Слабые места» вернёт их в игру.` : 'Копилка ошибок пока пуста.';
+}
+$('#btn-progress').addEventListener('click', () => { renderProgress(); show('progress'); });
+$('#btn-progress-back').addEventListener('click', () => { syncMenu(); show('menu'); });
+$('#btn-train-weak').addEventListener('click', () => {
+  const id = $('#btn-train-weak').dataset.id;
+  if (!TOPICS[id]) return;
+  prefs.subject = TOPICS[id].subject; prefs.topic = id; savePrefs(); startMatch();
+});
+let resetTimer = 0;
+$('#btn-reset').addEventListener('click', () => {
+  const b = $('#btn-reset');
+  if (!resetTimer) {
+    b.textContent = 'Точно сбросить? Нажми ещё раз';
+    resetTimer = setTimeout(() => { resetTimer = 0; b.textContent = 'Сбросить прогресс'; }, 3500);
+    return;
+  }
+  clearTimeout(resetTimer); resetTimer = 0; b.textContent = 'Сбросить прогресс';
+  prefs.stats = {}; prefs.mistakes = []; savePrefs(); renderProgress(); renderCoach();
+});
 
 /* ---------- мяч ---------- */
 function setBall(x, y) {
@@ -665,19 +1026,21 @@ function confetti() {
 const teamPts = (t) => t === 'you' ? M.me.pts + M.mates.reduce((s, b) => s + b.pts, 0) : M.foes.reduce((s, b) => s + b.pts, 0);
 
 function startMatch() {
+  normalizePrefs();
   const teamSize = prefs.format === '2x2' ? 2 : 1;
   const names = shuffle(BOT_NAMES).slice(0, teamSize * 2 - 1);
   const foeSport = pick(Object.keys(SPORTS));
-  const bp = LEVELS[prefs.level].bot;
+  const sc = SUBJECTS[prefs.subject].botScale, b0 = LEVELS[prefs.level].bot;
+  const bp = { mean: b0.mean * sc, sd: b0.sd, min: b0.min * sc, acc: b0.acc };
   const mk = (name, team) => ({ name, team, pts: 0, run: 0, delay: 0, nextAt: 0, p: bp, sport: team === 'foe' ? foeSport : prefs.sport });
   const mates = teamSize === 2 ? [mk(names[0], 'you')] : [];
   const foes = names.slice(mates.length).map(n => mk(n, 'foe'));
   const seed = (Date.now() ^ Math.floor(Math.random() * 4294967296)) >>> 0;
   M = {
-    level: prefs.level, sport: prefs.sport, foeSport, teamSize, target: POINTS_PER_PLAYER * teamSize,
+    subject: prefs.subject, topicMode: prefs.topic, level: prefs.level, sport: prefs.sport, foeSport, teamSize, target: POINTS_PER_PLAYER * teamSize,
     rng: mulberry32(seed), me: { name: 'Ты', team: 'you', pts: 0 }, mates, foes, bots: mates.concat(foes),
     phase: 'countdown', cd: 3, cdShown: 0, clock: 0, qt: 0, lock: 0, run: 0, bestRun: 0, input: '', q: null, prevQ: null,
-    paused: false, over: false, stats: { correct: 0, wrong: 0, timeouts: 0, fastest: Infinity }, review: new Set(),
+    paused: false, over: false, stats: { correct: 0, wrong: 0, timeouts: 0, fastest: Infinity }, review: new Set(), byTopic: {},
     tw: null, hold: 0, ballBusy: false, toastLeft: 0, last: performance.now(), cache: {}, zone: 'fast', keysLocked: true, raf: 0
   };
   M.youLabel = teamSize === 2 ? `Ты + ${mates[0].name}` : 'Ты';
@@ -695,10 +1058,19 @@ function startMatch() {
   el.shout.className = 'shout';
   el.countdown.hidden = false; el.countdown.textContent = '3';
   el.eq.className = 'eq ready'; el.pre.textContent = 'Приготовься'; el.pre.hidden = false;
+  el.text.hidden = true; el.ans.hidden = false;
   el.post.textContent = ''; el.post.hidden = true;
+  el.qtag.textContent = SUBJECTS[M.subject].name;
   M.input = ''; renderInput();
   el.track.dataset.zone = 'fast'; el.fill.style.transform = 'scaleX(1)'; el.worth.textContent = '';
-  el.keypad.classList.add('locked');
+  const choiceSubject = SUBJECTS[M.subject].kind === 'choice';
+  el.keypad.hidden = choiceSubject; el.choices.hidden = !choiceSubject;
+  el.choices.textContent = '';
+  if (choiceSubject) {
+    el.choices.style.setProperty('--n', 2);
+    for (let i = 0; i < 2; i++) { const b = h('button', 'opt', '·'); b.type = 'button'; el.choices.appendChild(b); }
+  }
+  el.keypad.classList.add('locked'); el.choices.classList.add('locked');
   show('match');
   M.raf = requestAnimationFrame(frame);
 }
@@ -742,14 +1114,14 @@ function tick(dt) {
 /* ---------- боты ---------- */
 function scheduleBot(b, penalty) {
   const p = b.p;
-  const d = Math.min(Math.max(p.mean + p.sd * gauss(), p.min), LEVELS[M.level].limit - 0.5);
+  const d = Math.min(Math.max(p.mean + p.sd * gauss(), p.min), baseLimit(M.level, M.subject) - 0.5);
   b.delay = d;
   b.nextAt = M.clock + d + (penalty ? LOCK_SECONDS : 0);
 }
 function botAct(b) {
   if (Math.random() < b.p.acc) {
     b.run++;
-    let gain = 1 + (b.delay <= LEVELS[M.level].limit * FAST_SHARE ? 1 : 0);
+    let gain = 1 + (b.delay <= baseLimit(M.level, M.subject) * FAST_SHARE ? 1 : 0);
     if (b.run % 3 === 0) { gain += SHOT_BONUS; toast(`${b.name}: ${SPORTS[b.sport].act} +${SHOT_BONUS}`, b.team); }
     b.pts += gain;
     scheduleBot(b, false);
@@ -759,33 +1131,85 @@ function botAct(b) {
   }
 }
 
-/* ---------- ввод игрока ---------- */
-const canInput = () => !!M && !M.over && M.phase === 'play' && !M.paused && M.lock <= 0;
-function renderInput() { el.ansText.textContent = M.input; el.ans.classList.toggle('empty', !M.input); }
-function renderQuestion() {
-  const q = M.q;
-  el.pre.textContent = q.pre; el.pre.hidden = !q.pre;
-  el.post.textContent = q.post; el.post.hidden = !q.post;
-  el.eq.classList.toggle('long', q.kind === 'comp');
+/* ---------- выбор задания ---------- */
+function chooseTopic(rng) {
+  const ids = SUBJECTS[M.subject].topics;
+  if (M.topicMode !== 'all' && M.topicMode !== 'weak') return M.topicMode;
+  if (M.topicMode === 'all') return ids[Math.floor(rng() * ids.length)];
+  const w = ids.map(id => { const st = topicStat(id); return st.n >= 5 ? 1 + 6 * (1 - st.acc) : 2; });
+  let r = rng() * w.reduce((a, b) => a + b, 0);
+  for (let i = 0; i < ids.length; i++) { r -= w[i]; if (r <= 0) return ids[i]; }
+  return ids[ids.length - 1];
+}
+function pickMistake(rng, prev) {
+  const list = mistakesFor(M.subject).filter(m => !prev || m.full !== prev.full);
+  if (!list.length) return null;
+  const q = rpick(rng, list);
+  const c = Object.assign({}, q);
+  if (q.options) c.options = q.options.slice();
+  c.limit = (c.kind === 'choice' ? LEVELS[M.level].limitChoice : LEVELS[M.level].limit) + (c.extra || 0);
+  c.retry = true;
+  return c;
 }
 function nextQuestion() {
   M.prevQ = M.q;
-  M.q = makeQuestion(M.rng, M.level, M.prevQ);
-  M.qt = 0; M.input = '';
+  let q = null;
+  if (M.topicMode === 'weak' && M.rng() < REPEAT_SHARE) q = pickMistake(M.rng, M.prevQ);
+  if (!q) q = makeQuestion(M.rng, M.level, chooseTopic(M.rng), M.prevQ);
+  M.q = q; M.qt = 0; M.input = '';
   renderQuestion(); renderInput();
 }
+
+/* ---------- вопрос на экране ---------- */
+function renderInput() { el.ansText.textContent = M.input; el.ans.classList.toggle('empty', !M.input); }
+function renderQuestion() {
+  const q = M.q, choice = q.kind === 'choice';
+  el.qtag.textContent = TOPICS[q.topic].tag;
+  el.pre.hidden = choice || !q.pre; el.post.hidden = choice || !q.post; el.ans.hidden = choice; el.text.hidden = !choice;
+  el.keypad.hidden = choice; el.choices.hidden = !choice;
+  el.eq.classList.toggle('long', !choice && q.form === 'comp');
+  if (choice) {
+    el.text.classList.toggle('long', q.prompt.length > 18);
+    el.text.textContent = '';
+    q.prompt.split('_').forEach((part, i) => { if (i > 0) el.text.appendChild(h('span', 'gap')); el.text.appendChild(document.createTextNode(part)); });
+    el.choices.textContent = '';
+    el.choices.style.setProperty('--n', q.options.length);
+    q.options.forEach((o, i) => { const b = h('button', 'opt', o); b.type = 'button'; b.dataset.i = i; el.choices.appendChild(b); });
+  } else {
+    el.pre.textContent = q.pre; el.post.textContent = q.post;
+  }
+}
+
+/* ---------- ответы игрока ---------- */
+const canInput = () => !!M && !M.over && M.phase === 'play' && !M.paused && M.lock <= 0 && !!M.q;
+function noteOutcome(q, ok) {
+  if (q.noted) return;
+  q.noted = true;
+  const st = prefs.stats[q.topic] || (prefs.stats[q.topic] = { recent: [], total: 0 });
+  st.recent.push([ok ? 1 : 0, Math.round(Math.min(M.qt, q.limit) * 10) / 10]);
+  if (st.recent.length > WINDOW) st.recent.shift();
+  st.total++;
+  const b = M.byTopic[q.topic] || (M.byTopic[q.topic] = { n: 0, ok: 0 });
+  b.n++; if (ok) b.ok++;
+  if (!ok) addMistake(q); else if (q.retry) removeMistake(q);
+}
 function pressDigit(d) {
-  if (!canInput() || M.input.length >= 3) return;
+  if (!canInput() || M.q.kind !== 'num' || M.input.length >= 3) return;
   M.input += d; renderInput();
   if (M.input.length === String(M.q.ans).length) submit();
 }
-function backspace() { if (!canInput()) return; M.input = M.input.slice(0, -1); renderInput(); }
+function backspace() { if (!canInput() || M.q.kind !== 'num') return; M.input = M.input.slice(0, -1); renderInput(); }
 function submit() {
-  if (!canInput() || !M.input) return;
+  if (!canInput() || M.q.kind !== 'num' || !M.input) return;
   if (Number(M.input) === M.q.ans) onCorrect(); else onWrong();
 }
+function chooseOption(i) {
+  if (!canInput() || M.q.kind !== 'choice' || i < 0 || i >= M.q.options.length) return;
+  if (i === M.q.ans) onCorrect(); else onWrongChoice();
+}
 function onCorrect() {
-  const fast = M.qt <= M.q.limit * FAST_SHARE;
+  const q = M.q, fast = M.qt <= q.limit * FAST_SHARE;
+  noteOutcome(q, true);
   M.run++; M.bestRun = Math.max(M.bestRun, M.run);
   M.stats.correct++; M.stats.fastest = Math.min(M.stats.fastest, M.qt);
   const shot = M.run % 3 === 0;
@@ -797,14 +1221,27 @@ function onCorrect() {
   checkEnd();
 }
 function onWrong() {
-  M.run = 0; M.stats.wrong++; M.review.add(M.q.full);
+  const q = M.q;
+  noteOutcome(q, false);
+  M.run = 0; M.stats.wrong++; M.review.add(q.full);
   M.lock = LOCK_SECONDS; M.input = ''; renderInput();
   restart(el.eq, 'shake');
   syncBall();
 }
+function onWrongChoice() {
+  const q = M.q;
+  noteOutcome(q, false);
+  M.run = 0; M.stats.wrong++; M.review.add(q.full);
+  toast(`Верно: ${q.fix}`, 'bad');
+  M.lock = LOCK_SECONDS;
+  syncBall();
+  nextQuestion();
+}
 function onTimeout() {
-  M.run = 0; M.stats.timeouts++; M.review.add(M.q.full);
-  toast(`Время! ${M.q.full}`, 'bad');
+  const q = M.q;
+  noteOutcome(q, false);
+  M.run = 0; M.stats.timeouts++; M.review.add(q.full);
+  toast(q.kind === 'choice' ? `Время! Верно: ${q.fix}` : `Время! ${q.full}`, 'bad');
   syncBall();
   nextQuestion();
 }
@@ -830,7 +1267,10 @@ function renderHud() {
     el.pips.classList.toggle('full', n === 3);
   }
   const locked = !(M.phase === 'play' && M.lock <= 0);
-  if (M.keysLocked !== locked) { M.keysLocked = locked; el.keypad.classList.toggle('locked', locked); }
+  if (M.keysLocked !== locked) {
+    M.keysLocked = locked;
+    el.keypad.classList.toggle('locked', locked); el.choices.classList.toggle('locked', locked);
+  }
   if (M.phase === 'play' && M.q) {
     const share = Math.max(0, M.q.limit - M.qt) / M.q.limit;
     el.fill.style.transform = `scaleX(${share.toFixed(3)})`;
@@ -867,15 +1307,29 @@ function endMatch(reason) {
   $('#st-correct').textContent = s.correct;
   $('#st-acc').textContent = attempts ? Math.round(s.correct / attempts * 100) + '%' : '—';
   $('#st-run').textContent = M.bestRun;
-  $('#st-fast').textContent = isFinite(s.fastest) ? s.fastest.toFixed(1).replace('.', ',') + ' с' : '—';
+  $('#st-fast').textContent = isFinite(s.fastest) ? dec(s.fastest) + ' с' : '—';
+
+  const tbox = $('#res-topics'); tbox.textContent = '';
+  const ids = Object.keys(M.byTopic);
+  ids.forEach(id => {
+    const b = M.byTopic[id], row = h('div');
+    row.appendChild(h('dt', null, TOPICS[id].name));
+    row.appendChild(h('dd', null, `${b.ok} из ${b.n}`));
+    tbox.appendChild(row);
+  });
+  if (!ids.length) { const row = h('div'); row.appendChild(h('dt', null, 'Ответов не было')); row.appendChild(h('dd', null, '—')); tbox.appendChild(row); }
+  const weakNow = ids.filter(id => M.byTopic[id].n >= 3 && M.byTopic[id].ok / M.byTopic[id].n < 0.7).map(id => TOPICS[id].name);
+  $('#res-coach').textContent = weakNow.length ? `Подтяни: ${weakNow.join(', ')}.` : (M.review.size ? 'Повтори ошибки ниже и сыграй ещё.' : '');
+
   const box = $('#review'); box.textContent = '';
   const list = Array.from(M.review).slice(0, 12);
-  if (list.length) list.forEach(t => { const c = document.createElement('span'); c.className = 'chip'; c.textContent = t; box.appendChild(c); });
-  else { const p = document.createElement('p'); p.textContent = 'Ошибок нет. Чистая игра!'; box.appendChild(p); }
+  if (list.length) list.forEach(t => box.appendChild(h('span', 'chip', t)));
+  else box.appendChild(h('p', null, 'Ошибок нет. Чистая игра!'));
 
   prefs.rec.played++; if (outcome === 'win') prefs.rec.wins++;
   prefs.rec.best[M.level] = Math.max(prefs.rec.best[M.level] || 0, M.me.pts);
   savePrefs(); syncMenu();
+  $('#btn-weak').hidden = !hasWeakStuff(M.subject);
   show('result');
 }
 
@@ -887,28 +1341,42 @@ function setPause(on) {
 /* ---------- события ---------- */
 $('#btn-start').addEventListener('click', startMatch);
 $('#btn-rematch').addEventListener('click', startMatch);
-$('#btn-menu').addEventListener('click', () => show('menu'));
+$('#btn-weak').addEventListener('click', () => { prefs.subject = M.subject; prefs.topic = 'weak'; savePrefs(); startMatch(); });
+$('#btn-menu').addEventListener('click', () => { syncMenu(); show('menu'); });
 $('#btn-pause').addEventListener('click', () => setPause(true));
 $('#btn-resume').addEventListener('click', () => setPause(false));
-$('#btn-quit').addEventListener('click', () => { if (M) { M.over = true; cancelAnimationFrame(M.raf); } show('menu'); });
+$('#btn-quit').addEventListener('click', () => { if (M) { M.over = true; cancelAnimationFrame(M.raf); } savePrefs(); syncMenu(); show('menu'); });
 
 const press = (k) => { if (!M || M.over) return; if (k === 'back') backspace(); else if (k === 'ok') submit(); else pressDigit(k); };
-const clearDown = () => $$('.key.down', el.keypad).forEach(k => k.classList.remove('down'));
+const clearDown = (box) => $$('.down', box).forEach(k => k.classList.remove('down'));
 el.keypad.addEventListener('pointerdown', (e) => {
   const b = e.target.closest('button[data-k]');
   if (!b) return;
   e.preventDefault(); b.classList.add('down'); press(b.dataset.k);
 });
-['pointerup', 'pointercancel', 'pointerleave'].forEach(t => el.keypad.addEventListener(t, clearDown));
+el.choices.addEventListener('pointerdown', (e) => {
+  const b = e.target.closest('button[data-i]');
+  if (!b) return;
+  e.preventDefault(); b.classList.add('down'); chooseOption(Number(b.dataset.i));
+});
+['pointerup', 'pointercancel', 'pointerleave'].forEach(t => {
+  el.keypad.addEventListener(t, () => clearDown(el.keypad));
+  el.choices.addEventListener(t, () => clearDown(el.choices));
+});
 el.keypad.addEventListener('click', (e) => { const b = e.target.closest('button[data-k]'); if (b && e.detail === 0) press(b.dataset.k); });
+el.choices.addEventListener('click', (e) => { const b = e.target.closest('button[data-i]'); if (b && e.detail === 0) chooseOption(Number(b.dataset.i)); });
 document.addEventListener('keydown', (e) => {
   if (!M || M.over || $('#screen-match').hidden) return;
-  if (/^[0-9]$/.test(e.key)) press(e.key);
+  if (/^[0-9]$/.test(e.key)) {
+    if (M.q && M.q.kind === 'choice') chooseOption(Number(e.key) - 1); else press(e.key);
+  }
   else if (e.key === 'Backspace') { e.preventDefault(); press('back'); }
   else if (e.key === 'Enter') { e.preventDefault(); press('ok'); }
   else if (e.key === 'Escape') setPause(!M.paused);
 });
-document.addEventListener('visibilitychange', () => { if (document.hidden && M && !M.over) setPause(true); });
+document.addEventListener('visibilitychange', () => {
+  if (document.hidden) { savePrefs(); if (M && !M.over) setPause(true); }
+});
 
 loadPrefs();
 syncMenu();
