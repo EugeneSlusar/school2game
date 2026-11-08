@@ -5,3 +5,5 @@ node_modules/
 *.aab
 *.keystore
 *.jks
+.env
+server/data/
