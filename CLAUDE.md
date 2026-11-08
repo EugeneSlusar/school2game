@@ -10,12 +10,13 @@
 Полные решения и план: `docs/plan.md`. Передача контекста и нюансы: `docs/HANDOFF.md`. Прочитай оба файла перед работой.
 
 ## Текущий приоритет
-Только веб-версия (Android на паузе). Следующий шаг: сервер Node.js + SQLite, вход через Яндекс ID (Google нельзя: закон 199-ФЗ с 7.07.2026), таблица рейтинга. Для этого нужны домен с HTTPS и приложение в Яндекс ID от владельца (см. docs/plan.md, раздел «Веб-версия: рейтинг и вход через Яндекс ID»).
+Только веб-версия (Android на паузе). Хостинг: Timeweb Optimo (шаред), PHP + MySQL, сайт https://lab.orgbox.net/school2game/. Бэкенд (`server/`, `www/api/`) написан: вход через бота MAX, рейтинг, синхронизация гостя. Следующий шаг: клиент (экран входа, ник, «Рейтинг», отправка матчей) и разбор автодеплоя. Подробности: `docs/plan.md`, `docs/HANDOFF.md`.
 
 ## Структура
 - `docs/artifact-version.html` — ИСТОЧНИК ИСТИНЫ: вся игра в одном файле (HTML, CSS, JS), шрифты через Google Fonts.
 - `www/index.html` — ГЕНЕРИРУЕТСЯ из источника командой `npm run build` (подставляет локальные шрифты `www/fonts/`). Руками не править.
 - `tools/make-index.js` — генератор `www/index.html`; `tools/gentest.js` — проверка генераторов заданий; `tools/smoke.js` — дымовой тест матча в jsdom (нужен `npm i jsdom` вне репозитория); `tools/make-icons.py` — иконки.
+- `server/` — PHP-бэкенд (бот MAX, рейтинг, схема БД), `www/api/index.php` — единственная точка входа, `tests/api.test.php` — тесты на SQLite (`npm run test:api`). Секреты только в `.env` (в git не попадает, образец `.env.example`).
 - `android/`, `capacitor.config.json` — обёртка Capacitor 7 (appId `ru.slusar.tablichnysport`, не менять, иначе APK не встанет поверх старого).
 - `.github/workflows/android-apk.yml` — сборка debug APK в GitHub Actions (не проверена).
 

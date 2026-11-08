@@ -110,3 +110,21 @@
 - Проверить игру на телефоне, подобрать скорость ботов и цель по очкам по реакции детей.
 - Добавить звуки и остальные виды спорта.
 - Решить, где публиковать: свой сервер (папка `www` целиком) или Google Play.
+
+## Бэкенд (сделано, 8 ноября 2026)
+
+Решение владельца: вместо Яндекс ID вход через MAX; хостинг шаред (Timeweb Optimo), поэтому PHP 8.5 + MySQL 8.4 вместо Node + SQLite. БД `orgbox_school2game`, сайт https://lab.orgbox.net/school2game/.
+
+**Вход через бота MAX.** Официального OAuth для сайтов у MAX нет, поэтому: игра просит `POST /api/auth/start`, получает 8-значный код и ссылку на бота (`MAX_BOT_LINK?start=КОД`; формат ссылки не подтверждён документацией, код можно и просто отправить боту текстом). Бот получает вебхук (`bot_started.payload` или `message_created`), привязывает MAX user_id к коду. Игра опрашивает `POST /api/auth/poll`, получает сессию в cookie (HttpOnly, SameSite=Lax). Реальное имя из MAX не сохраняется, только числовой id; ник и эмодзи-аватар выбирает ребёнок.
+
+**API** (`/api/...`, JSON; у POST обязателен `Content-Type: application/json`): `GET health`, `POST auth/start`, `POST auth/poll`, `POST max/webhook`, `GET me`, `POST profile`, `POST logout`, `POST sync`, `GET leaderboard?period=all|week&subject=all|math|rus`.
+
+**sync**: принимает `guestId`, `matches[]` (формат журнала матчей клиента), `stats`. Матчи проверяет `server/validate.php` (правдоподобие очков, скорости ответов, длительности, согласованность исхода и тем), добавляет идемпотентно по `id`, чужой `id` присвоить нельзя. Ответ: `accepted`, `duplicate`, `rejected[{id,reason}]` (клиент помечает все три `sent=true`), `stats` с сервера для `mergeData`. Статистика темы: побеждает вариант с большим `total`.
+
+**Рейтинг**: сумма очков на игрока (в 2×2 очки команды делятся на 2), общий и за неделю (с понедельника по Москве), по предмету.
+
+**Константы** игры продублированы в `server/validate.php`; при изменении правил (`POINTS_PER_PLAYER`, длина матча, бонусы) править и там.
+
+**Запуск на сервере**: `cp .env.example .env`, вписать `DB_PASS`, `MAX_BOT_TOKEN`, `MAX_BOT_LINK`, `MAX_WEBHOOK_SECRET`; `php server/migrate.php`; `php server/max-subscribe.php` (подписка вебхука, нужен HTTPS на 443 и доверенный сертификат).
+
+**Не подтверждено, проверить на живом боте**: формат deep link `?start=`, имя заголовка секрета `X-Max-Bot-Api-Secret` (по документации так), поведение Apache с этим заголовком (в `www/api/.htaccess` есть обход).

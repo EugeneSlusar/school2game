@@ -1,0 +1,8 @@
+# Закрываем служебное, если корнем сайта оказался корень репозитория
+<FilesMatch "^\.(env|git|deploy)">
+  Require all denied
+</FilesMatch>
+<IfModule mod_rewrite.c>
+  RewriteEngine On
+  RewriteRule ^(server|tests|tools|docs|android|\.git|\.deploy)(/|$) - [F,L]
+</IfModule>
