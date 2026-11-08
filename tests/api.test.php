@@ -10,7 +10,30 @@ $fail = 0; $n = 0;
 function ok(bool $c, string $name): void { global $fail, $n; $n++; if (!$c) { $fail++; echo "ПРОВАЛ: $name\n"; } }
 $sent = [];
 $GLOBALS['s2g_http'] = function ($url, $body, $h) use (&$sent) { $sent[] = [$url, $body, $h]; return [200, '{}']; };
-migrate(); migrate(); // повтор безопасен
+$first = migrate(); $again = migrate();
+ok($first === ['001_init'] && $again === [], 'миграции: первый запуск применяет, повторный ничего');
+// новая миграция подхватывается сама, старые не повторяются
+$tmp = sys_get_temp_dir() . '/s2g-mig-' . getmypid(); mkdir($tmp);
+copy(__DIR__ . '/../server/migrations/001_init.php', "$tmp/001_init.php");
+file_put_contents("$tmp/002_extra.php", '<?php return function ($db, $d) { $db->exec("CREATE TABLE IF NOT EXISTS extra_t (id INT)"); };');
+ok(migrate($tmp) === ['002_extra'], 'новый файл миграции применён сразу');
+ok(migrate($tmp) === [], 'без новых файлов миграция ничего не делает');
+file_put_contents("$tmp/003_bad.php", '<?php return function ($db, $d) { $db->exec("NOT SQL"); };');
+$threw = false; try { migrate($tmp); } catch (\Throwable $e) { $threw = true; }
+ok($threw && !in_array('003_bad', S2G\appliedMigrations(), true), 'сбойная миграция не помечается применённой');
+array_map('unlink', glob("$tmp/*.php")); rmdir($tmp);
+ok(S2G\prepare() === null, 'prepare() проходит');
+
+// --- без настроенного MAX сайт работает
+$saved = [getenv('MAX_BOT_TOKEN'), getenv('MAX_BOT_LINK')];
+putenv('MAX_BOT_TOKEN'); putenv('MAX_BOT_LINK');
+[$st, $r] = dispatch(['method' => 'GET', 'route' => '/config', 'query' => [], 'body' => null, 'cookie' => '', 'ip' => '1', 'secretHeader' => '', 'jsonType' => false]);
+ok($st === 200 && $r['login'] === false, 'config: вход выключен без MAX');
+[$st, $r] = dispatch(['method' => 'POST', 'route' => '/auth/start', 'query' => [], 'body' => [], 'cookie' => '', 'ip' => '1', 'secretHeader' => '', 'jsonType' => true]);
+ok($st === 503 && $r['error'] === 'login_not_configured', 'auth/start без MAX = 503 login_not_configured');
+[$st, $r] = dispatch(['method' => 'GET', 'route' => '/leaderboard', 'query' => [], 'body' => null, 'cookie' => '', 'ip' => '1', 'secretHeader' => '', 'jsonType' => false]);
+ok($st === 200, 'рейтинг читается без MAX');
+putenv('MAX_BOT_TOKEN=' . $saved[0]); putenv('MAX_BOT_LINK=' . $saved[1]);
 
 function call(string $m, string $route, ?array $body = null, string $cookie = '', array $query = [], string $secret = '', bool $json = true): array {
     return dispatch(['method' => $m, 'route' => $route, 'query' => $query, 'body' => $body, 'cookie' => $cookie, 'ip' => '1.2.3.4', 'secretHeader' => $secret, 'jsonType' => $json]);

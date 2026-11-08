@@ -125,6 +125,10 @@
 
 **Константы** игры продублированы в `server/validate.php`; при изменении правил (`POINTS_PER_PLAYER`, длина матча, бонусы) править и там.
 
-**Запуск на сервере**: `cp .env.example .env`, вписать `DB_PASS`, `MAX_BOT_TOKEN`, `MAX_BOT_LINK`, `MAX_WEBHOOK_SECRET`; `php server/migrate.php`; `php server/max-subscribe.php` (подписка вебхука, нужен HTTPS на 443 и доверенный сертификат).
+**Миграции**: файлы `server/migrations/NNN_имя.php` (функция `fn(PDO, driver)`), учёт в таблице `schema_migrations`. При каждом запросе к API проверяется, есть ли неприменённые файлы: если есть, они сразу выполняются под блокировкой MySQL (`GET_LOCK`), если нет, стоит один SELECT. Миграции пишем идемпотентно (`IF NOT EXISTS`), применённые файлы не правим. Сбой миграции отключает только API (`503 migration_failed`), игра не страдает. Вручную: `php server/migrate.php`, либо открыть `/api/health`.
+
+**Работа без MAX**: вход включается, только если в `.env` заданы `MAX_BOT_TOKEN`, `MAX_WEBHOOK_SECRET` и `MAX_BOT_LINK`. Без них `GET /api/config` отдаёт `{"login": false}`, `auth/start` отвечает `503 login_not_configured`, остальное (в том числе рейтинг) работает. Без `.env` совсем API отвечает `503 db_unavailable`, а игра (статика в `www/`) работает как раньше. Клиент должен читать `/api/config` и прятать кнопку входа, если `login` ложь.
+
+**Запуск на сервере**: `cp .env.example .env`, вписать `DB_PASS` (сначала достаточно его), затем когда будет бот: `MAX_BOT_TOKEN`, `MAX_BOT_LINK`, `MAX_WEBHOOK_SECRET` и `php server/max-subscribe.php` (подписка вебхука, нужен HTTPS на 443 и доверенный сертификат). Таблицы создаются сами.
 
 **Не подтверждено, проверить на живом боте**: формат deep link `?start=`, имя заголовка секрета `X-Max-Bot-Api-Secret` (по документации так), поведение Apache с этим заголовком (в `www/api/.htaccess` есть обход).

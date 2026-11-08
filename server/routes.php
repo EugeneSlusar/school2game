@@ -11,6 +11,11 @@ const CODE_ALPHABET = 'ABCDEFGHJKMNPQRSTUVWXYZ23456789';
 const CODE_TTL = 600;
 const MAX_BATCH = 200;
 
+/** Вход через MAX включён, только если заданы токен бота, секрет вебхука и ссылка на бота. Без них игра и рейтинг для гостей работают. */
+function maxConfigured(): bool {
+    return env('MAX_BOT_TOKEN') !== '' && env('MAX_WEBHOOK_SECRET') !== '' && env('MAX_BOT_LINK') !== '';
+}
+
 /* ---------- HTTP к MAX (подменяется в тестах) ---------- */
 $GLOBALS['s2g_http'] = null;
 function httpPost(string $url, array $body, array $headers): array {
@@ -56,6 +61,7 @@ function randomCode(): string {
 
 /* ---------- обработчики ---------- */
 function authStart(array $req): array {
+    if (!maxConfigured()) fail(503, 'login_not_configured');
     $now = time();
     q('DELETE FROM login_codes WHERE expires_at < ?', [$now - 3600]);
     q('DELETE FROM sessions WHERE expires_at < ?', [$now]);
@@ -127,6 +133,10 @@ function webhook(array $req): array {
     q("UPDATE login_codes SET status = 'confirmed', user_id = ? WHERE code = ? AND status = 'pending'", [$user['id'], $row['code']]);
     maxSend($maxId, 'Готово, вход подтверждён! Возвращайся в игру.');
     return [200, ['ok' => true]];
+}
+
+function health(array $req): array {
+    return [200, ['ok' => true, 'db' => true, 'login' => maxConfigured()]];
 }
 
 function me(array $req): array { return [200, ['user' => userView(requireUser($req))]]; }
@@ -240,7 +250,8 @@ function leaderboard(array $req): array {
 /* ---------- маршрутизация ---------- */
 function routes(): array {
     return [
-        'GET /health' => fn() => [200, ['ok' => true]],
+        'GET /health' => 'S2G\health',
+        'GET /config' => fn() => [200, ['login' => maxConfigured()]],
         'POST /auth/start' => 'S2G\authStart',
         'POST /auth/poll' => 'S2G\authPoll',
         'POST /max/webhook' => 'S2G\webhook',
@@ -287,7 +298,8 @@ function run(): void {
         'secretHeader' => $_SERVER['HTTP_X_MAX_BOT_API_SECRET'] ?? '',
         'jsonType' => str_contains(strtolower($_SERVER['CONTENT_TYPE'] ?? ''), 'application/json'),
     ];
-    if (!db_ready()) { http_response_code(503); header('Content-Type: application/json'); echo '{"error":"db_unavailable"}'; return; }
+    $err = prepare();
+    if ($err !== null) { http_response_code(503); header('Content-Type: application/json'); header('Cache-Control: no-store'); echo json_encode(['error' => $err]); return; }
     [$status, $data, $cookie] = dispatch($req) + [2 => null];
     http_response_code($status);
     header('Content-Type: application/json; charset=utf-8');
@@ -300,4 +312,14 @@ function run(): void {
     }
     echo json_encode($data, JSON_UNESCAPED_UNICODE);
 }
-function db_ready(): bool { try { db(); return true; } catch (\Throwable $e) { error_log('s2g db: ' . $e->getMessage()); return false; } }
+/**
+ * Подготовка при каждом запуске: подключение к БД и применение новых миграций.
+ * Если новых файлов нет, это один быстрый SELECT. Возвращает код ошибки или null.
+ * Сбой тут отключает только API: статичная игра в www/ продолжает работать.
+ */
+function prepare(): ?string {
+    try { db(); } catch (\Throwable $e) { error_log('s2g db: ' . $e->getMessage()); return 'db_unavailable'; }
+    try { $done = migrate(); if ($done) error_log('s2g: применены миграции: ' . implode(', ', $done)); }
+    catch (\Throwable $e) { error_log('s2g migrate: ' . $e->getMessage()); return 'migration_failed'; }
+    return null;
+}
