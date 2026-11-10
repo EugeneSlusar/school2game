@@ -3,6 +3,4 @@ DirectoryIndex index.php
   RewriteEngine On
   RewriteCond %{REQUEST_FILENAME} !-f
   RewriteRule ^ index.php [L,QSA]
-  # Apache на части хостингов не передаёт заголовок в PHP
-  RewriteRule .* - [E=HTTP_X_MAX_BOT_API_SECRET:%{HTTP:X-Max-Bot-Api-Secret}]
 </IfModule>

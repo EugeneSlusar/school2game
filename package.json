@@ -8,7 +8,8 @@
     "test": "node tools/gentest.js",
     "apk": "cap sync android && cd android && ./gradlew assembleDebug",
     "test:api": "php tests/api.test.php",
-    "test:ui": "node tests/ui.test.js"
+    "test:ui": "node tests/ui.test.js",
+    "test:profanity": "php tests/profanity.test.php"
   },
   "dependencies": {
     "@capacitor/android": "^7.6.10",

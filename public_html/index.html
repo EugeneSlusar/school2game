@@ -331,6 +331,20 @@ a.btn{display:flex;align-items:center;justify-content:center;box-sizing:border-b
 .err{margin:0;min-height:1.2em;color:var(--bad);font-size:17px}
 .okmsg{color:var(--good)}
 .stack{display:grid;gap:12px}
+.topbar{display:flex;align-items:center;min-height:48px;padding-top:4px}
+.avatar-btn{position:relative;display:flex;align-items:center;gap:10px;max-width:100%;padding:4px 14px 4px 4px;color:var(--ink);background:var(--card);border:2px solid var(--ink);border-radius:999px;box-shadow:0 3px 0 var(--ink);text-align:left}
+.avatar-btn:active{transform:translateY(3px);box-shadow:0 0 0 var(--ink)}
+.avatar-btn .avb{flex:none;width:40px;height:40px;display:flex;align-items:center;justify-content:center;font-size:24px;line-height:1;background:var(--you-soft);border-radius:50%}
+.avatar-btn .avt{display:grid;min-width:0}
+.avatar-btn b{font:400 16px/1.1 var(--font-display);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.avatar-btn small{font-size:14px;line-height:1.1;color:var(--ink-soft);white-space:nowrap}
+.avatar-btn .dot{position:absolute;top:-3px;right:-3px;width:14px;height:14px;background:var(--bad);border:2px solid var(--paper);border-radius:50%;animation:pulse 1.6s ease-in-out infinite}
+@keyframes pulse{0%,100%{transform:scale(1)}50%{transform:scale(1.35)}}
+@media (prefers-reduced-motion: reduce){.avatar-btn .dot{animation:none}}
+.codebox{display:grid;gap:8px;padding:12px;background:var(--card);border:2px dashed var(--shade);border-radius:14px}
+.codebox .code{font-size:clamp(20px,6.5vw,28px)}
+.codebox .row{margin:0}
+.fld input.mono{font:400 18px/1 var(--font-display);letter-spacing:.08em;text-transform:uppercase}
 </style>
 </head>
 <body>
@@ -340,6 +354,13 @@ a.btn{display:flex;align-items:center;justify-content:center;box-sizing:border-b
 
   <!-- ===== Меню ===== -->
   <section class="screen" id="screen-menu">
+    <div class="topbar">
+      <button type="button" class="avatar-btn" id="btn-avatar" aria-label="Мой профиль">
+        <span class="avb" id="avb-av" aria-hidden="true">🙂</span>
+        <span class="avt"><b id="avb-name">Гость</b><small id="avb-hint"></small></span>
+        <i class="dot" id="avb-dot" hidden></i>
+      </button>
+    </div>
     <header class="brand">
       <h1>school2game</h1>
       <svg viewBox="0 0 150 10" aria-hidden="true"><path class="wave" d="M3 5 Q12 -1 21 5 T39 5 T57 5 T75 5 T93 5 T111 5 T129 5 T147 5"/></svg>
@@ -432,7 +453,6 @@ a.btn{display:flex;align-items:center;justify-content:center;box-sizing:border-b
       <button type="button" class="linkbtn" id="btn-progress">Мой прогресс</button>
       <button type="button" class="linkbtn" id="btn-rating">Рейтинг</button>
     </div>
-    <button type="button" class="linkbtn" id="btn-account">Профиль</button>
 
     <details class="rules">
       <summary>Как считаются очки</summary>
@@ -613,27 +633,34 @@ a.btn{display:flex;align-items:center;justify-content:center;box-sizing:border-b
       <svg viewBox="0 0 150 10" aria-hidden="true"><path class="wave" d="M3 5 Q12 -1 21 5 T39 5 T57 5 T75 5 T93 5 T111 5 T129 5 T147 5"/></svg>
       <p id="pf-sub"></p>
     </header>
-    <div class="stack" id="pf-guest" hidden>
-      <p class="pnote" id="pf-guest-text"></p>
-      <button type="button" class="btn primary" id="btn-login">Войти через MAX</button>
-      <div class="stack" id="pf-login" hidden>
-        <p class="pnote">Нажми «Открыть MAX» и запусти бота. Или отправь боту этот код сообщением:</p>
-        <p class="code" id="pf-code"></p>
-        <a class="btn primary" id="pf-link" target="_blank" rel="noopener" hidden>Открыть MAX</a>
-        <p class="pnote" id="pf-wait" role="status"></p>
-        <button type="button" class="btn" id="btn-login-cancel">Отмена</button>
-      </div>
-    </div>
+    <p class="pnote" id="pf-offline" hidden></p>
     <div class="stack" id="pf-user" hidden>
       <div class="pcard"><span class="av" id="pf-av"></span><b id="pf-nick"></b></div>
-      <div class="fld"><label for="pf-nick-in">Ник</label><input id="pf-nick-in" maxlength="16" autocomplete="off" autocapitalize="off" spellcheck="false"></div>
+      <div class="fld"><label for="pf-nick-in">Ник</label><input id="pf-nick-in" maxlength="16" autocomplete="off" autocapitalize="off" spellcheck="false" placeholder="Придумай ник"></div>
       <div class="fld"><span class="lbl">Аватар</span><div class="avs" id="pf-avs"></div></div>
       <p class="err" id="pf-err" role="alert"></p>
       <button type="button" class="btn primary" id="btn-pf-save">Сохранить</button>
       <p class="pnote" id="pf-sync"></p>
+
+      <div class="codebox">
+        <span class="lbl" style="font:400 13px/1 var(--font-display);letter-spacing:.09em;text-transform:uppercase;color:var(--ink-soft)">Код для входа на другом устройстве</span>
+        <p class="code" id="pf-rc"></p>
+        <p class="pnote" id="pf-rc-note"></p>
+        <div class="row two">
+          <button type="button" class="mini" id="btn-code-copy">Скопировать</button>
+          <button type="button" class="mini" id="btn-code-new">Новый код</button>
+        </div>
+      </div>
+
+      <div class="fld">
+        <label for="rc-in">Войти по коду</label>
+        <input id="rc-in" class="mono" maxlength="20" autocomplete="off" autocapitalize="characters" spellcheck="false" placeholder="XXXX-XXXX-XXXX">
+        <p class="pnote">Если ты войдёшь по другому коду, этот профиль останется только по его коду. Сохрани его.</p>
+        <button type="button" class="btn" id="btn-recover">Войти по коду</button>
+        <p class="err" id="rc-err" role="alert"></p>
+      </div>
     </div>
     <div class="actions">
-      <button type="button" class="btn" id="btn-logout" hidden>Выйти</button>
       <button type="button" class="btn" id="btn-profile-back">В меню</button>
     </div>
   </section>
@@ -1117,8 +1144,8 @@ function renderProgress() {
   const n = prefs.mistakes.length;
   $('#pnote').textContent = (n ? `В копилке ошибок заданий: ${n}. Режим «Слабые места» вернёт их в игру. ` : 'Копилка ошибок пока пуста. ') +
     `Сыграно матчей: ${prefs.matches.length}. ` + (acc.user
-      ? `Ты вошёл как ${acc.user.nick || 'игрок без ника'}: результаты уходят в рейтинг.`
-      : 'Ты играешь как гость: результаты хранятся на этом устройстве и перенесутся в рейтинг после входа.');
+      ? `Твой профиль: ${userName(acc.user)}. Результаты уходят в рейтинг.`
+      : 'Нет связи с сервером: результаты хранятся на этом устройстве и отправятся в рейтинг позже.');
 }
 $('#btn-progress').addEventListener('click', () => { renderProgress(); show('progress'); });
 $('#btn-progress-back').addEventListener('click', () => { syncMenu(); show('menu'); });
@@ -1140,8 +1167,13 @@ $('#btn-reset').addEventListener('click', () => {
 });
 
 /* ---------- аккаунт, профиль, рейтинг, синхронизация (сервер: папка api/) ---------- */
+/* Каждый игрок сразу получает «неопознанный» профиль со случайным аватаром, результаты уходят в рейтинг.
+   Ник и аватар можно вписать в профиле; код восстановления переносит профиль на другое устройство. */
 const API = 'api/';
+const REC_KEY = 'school2game-recovery';
 const acc = { conf: null, user: null, busy: false };   // conf: ответ /config, null если сервер недоступен
+const getRecovery = () => { try { return localStorage.getItem(REC_KEY) || ''; } catch (e) { return ''; } };
+const setRecovery = (c) => { try { localStorage.setItem(REC_KEY, c); } catch (e) { /* ничего */ } };
 async function api(method, path, body) {
   const opt = { method, credentials: 'same-origin', headers: {} };
   if (method === 'POST') { opt.headers['Content-Type'] = 'application/json'; opt.body = JSON.stringify(body || {}); }
@@ -1152,31 +1184,46 @@ async function api(method, path, body) {
   if (data === null) throw new Error('bad_response');
   return data;
 }
-const loginAvailable = () => !!(acc.conf && acc.conf.login);
 const ERR_TEXT = {
   bad_nick: 'Ник: от 2 до 16 символов, буквы, цифры, пробел и _ . -', nick_taken: 'Такой ник уже занят, придумай другой',
-  bad_avatar: 'Выбери аватар из списка', not_logged_in: 'Нужно войти заново', login_not_configured: 'Вход через MAX пока не включён',
-  too_many_requests: 'Слишком много попыток, подожди немного'
+  nick_not_allowed: 'Такой ник нельзя. Выбери другой', bad_avatar: 'Выбери аватар из списка', not_logged_in: 'Профиль не найден, попробуй позже',
+  bad_code: 'Код не подошёл. Проверь буквы и цифры', too_many_requests: 'Слишком много попыток, подожди немного'
 };
 const errText = (e) => ERR_TEXT[e.message] || (e.status ? 'Сервер не смог ответить, попробуй позже' : 'Нет связи с сервером');
 const unsentCount = () => prefs.matches.filter(m => !m.sent).length;
+const userName = (u) => u.name || u.nick || 'Неопознанный';
 
-function renderAccountBtn() {
-  const b = $('#btn-account');
-  b.textContent = acc.user ? `${acc.user.avatar || '🙂'} ${acc.user.nick || 'Выбери ник'}` : (loginAvailable() ? 'Войти через MAX' : 'Профиль');
+/* аватар вверху слева: подсказывает вписать свои данные */
+function renderAvatarBtn() {
+  const u = acc.user;
+  $('#avb-av').textContent = u ? (u.avatar || '🙂') : '🙂';
+  $('#avb-name').textContent = u ? (u.nick || 'Неопознанный') : 'Гость';
+  $('#avb-hint').textContent = u ? (u.nick ? 'мой профиль' : 'впиши своё имя') : (acc.conf ? 'загружаю…' : 'нет связи');
+  $('#avb-dot').hidden = !(u && !u.nick);
+}
+async function ensureAccount() {
+  if (acc.user || !acc.conf) return;
+  const saved = getRecovery();
+  if (saved) {
+    try { acc.user = (await api('POST', 'auth/recover', { code: saved })).user; return; }
+    catch (e) { if (e.status !== 404 && e.status !== 400) return; }   // нет связи или лимит: попробуем позже
+  }
+  try { const r = await api('POST', 'auth/guest', {}); acc.user = r.user; setRecovery(r.recoveryCode); } catch (e) { /* позже */ }
 }
 async function initAccount() {
-  try { acc.conf = await api('GET', 'config'); } catch (e) { acc.conf = null; }
-  if (acc.conf) { try { acc.user = (await api('GET', 'me')).user; } catch (e) { acc.user = null; } }
-  renderAccountBtn();
+  try { acc.conf = await api('GET', 'config'); } catch (e) { acc.conf = null; renderAvatarBtn(); return; }
+  try { acc.user = (await api('GET', 'me')).user; } catch (e) { if (e.status === 401) await ensureAccount(); }
+  renderAvatarBtn();
   syncSoon();
 }
 
 /* отправка матчей и статистики на сервер; безопасно вызывать сколько угодно раз */
 async function syncNow() {
-  if (!acc.user || acc.busy) return false;
+  if (acc.busy) return false;
   acc.busy = true;
   try {
+    if (!acc.user) { await ensureAccount(); renderAvatarBtn(); }
+    if (!acc.user) return false;
     for (let guard = 0; guard < 10; guard++) {
       const batch = prefs.matches.filter(m => !m.sent).slice(0, 100);
       const r = await api('POST', 'sync', {
@@ -1192,78 +1239,49 @@ async function syncNow() {
     if (!$('#screen-profile').hidden) renderProfile();
     return true;
   } catch (e) {
-    if (e.status === 401) { acc.user = null; renderAccountBtn(); }
+    if (e.status === 401) { acc.user = null; renderAvatarBtn(); }
     return false;
   } finally { acc.busy = false; }
 }
 const syncSoon = () => { syncNow(); };
 
-/* вход через бота MAX */
-let loginTimer = 0, loginRun = 0;
-function stopLogin() { loginRun++; clearTimeout(loginTimer); loginTimer = 0; $('#pf-login').hidden = true; $('#btn-login').hidden = !loginAvailable(); }
-async function startLogin() {
-  stopLogin(); const run = loginRun;
-  $('#btn-login').hidden = true; $('#pf-wait').textContent = 'Готовлю вход…'; $('#pf-login').hidden = false; $('#pf-code').textContent = '';
-  try {
-    const s = await api('POST', 'auth/start', {});
-    if (run !== loginRun) return;
-    $('#pf-code').textContent = s.code;
-    const a = $('#pf-link'); a.hidden = !s.link; if (s.link) a.href = s.link;
-    $('#pf-wait').textContent = 'Жду подтверждения в MAX…';
-    const until = Date.now() + (s.expiresIn || 600) * 1000;
-    const tick = async () => {
-      if (run !== loginRun) return;
-      if (Date.now() > until) { stopLogin(); $('#pf-guest-text').textContent = 'Код устарел. Нажми «Войти через MAX» ещё раз.'; return; }
-      try {
-        const r = await api('POST', 'auth/poll', { poll: s.poll });
-        if (run !== loginRun) return;
-        if (r.status === 'ok') { acc.user = r.user; stopLogin(); renderAccountBtn(); renderProfile(); syncSoon(); return; }
-        if (r.status === 'expired') { stopLogin(); $('#pf-guest-text').textContent = 'Код устарел. Нажми «Войти через MAX» ещё раз.'; return; }
-      } catch (e) { /* связь моргнула, пробуем дальше */ }
-      loginTimer = setTimeout(tick, 2000);
-    };
-    loginTimer = setTimeout(tick, 2000);
-  } catch (e) {
-    if (run !== loginRun) return;
-    stopLogin(); $('#pf-guest-text').textContent = errText(e);
-  }
-}
-
+/* профиль */
 let pfAvatar = '';
 function renderProfile() {
-  const u = acc.user;
-  $('#pf-guest').hidden = !!u; $('#pf-user').hidden = !u; $('#btn-logout').hidden = !u;
+  const u = acc.user, off = $('#pf-offline');
+  $('#pf-user').hidden = !u;
+  off.hidden = !!u;
   if (!u) {
-    $('#pf-sub').textContent = 'Ты играешь как гость.';
-    if ($('#pf-login').hidden) {
-      $('#pf-guest-text').textContent = loginAvailable()
-        ? 'Войди через MAX, чтобы попасть в рейтинг. Матчи с этого устройства засчитаются задним числом. Из MAX берётся только номер аккаунта, имя и фото не сохраняются.'
-        : acc.conf ? 'Вход через MAX пока не включён. Играй как гость: результаты хранятся на этом устройстве и попадут в рейтинг после входа.'
-                   : 'Нет связи с сервером. Игра работает, результаты хранятся на этом устройстве.';
-      $('#btn-login').hidden = !loginAvailable();
-    }
+    $('#pf-sub').textContent = 'Ты играешь без профиля.';
+    off.textContent = acc.conf ? 'Профиль загружается. Если долго не появляется, вернись в меню и зайди снова.'
+                               : 'Нет связи с сервером. Игра работает, результаты хранятся на этом устройстве и отправятся в рейтинг, когда связь появится.';
     return;
   }
-  $('#pf-sub').textContent = u.needsNick ? 'Придумай ник: он будет виден в рейтинге. Настоящее имя писать не нужно.' : 'Ник и аватар видны другим игрокам в рейтинге. Их можно менять.';
+  $('#pf-sub').textContent = u.nick ? 'Ник и аватар видны другим игрокам в рейтинге. Их можно менять.'
+                                    : 'Сейчас ты «Неопознанный игрок». Впиши ник, чтобы тебя узнавали в рейтинге. Настоящее имя писать не нужно.';
   $('#pf-av').textContent = pfAvatar || u.avatar || '🙂';
-  $('#pf-nick').textContent = u.nick || 'Без ника';
+  $('#pf-nick').textContent = userName(u);
   const box = $('#pf-avs'); box.textContent = '';
   ((acc.conf && acc.conf.avatars) || []).forEach(a => {
     const b = h('button', null, a); b.type = 'button'; b.dataset.a = a; b.setAttribute('aria-pressed', String(a === (pfAvatar || u.avatar))); box.appendChild(b);
   });
   const n = unsentCount();
   $('#pf-sync').textContent = n ? `Ждут отправки в рейтинг: ${n}.` : 'Все твои матчи уже в рейтинге.';
+  const rc = getRecovery();
+  $('#pf-rc').textContent = rc || '— — —';
+  $('#pf-rc-note').textContent = rc ? 'Запиши или скопируй код. Он нужен, чтобы вернуть профиль на другом телефоне или после очистки браузера.'
+                                    : 'Код показывается один раз при создании профиля. Нажми «Новый код», чтобы получить новый (старый перестанет работать).';
+  $('#btn-code-copy').hidden = !rc;
 }
 function openProfile() {
-  pfAvatar = ''; $('#pf-err').textContent = ''; $('#pf-err').classList.remove('okmsg');
+  pfAvatar = ''; $('#pf-err').textContent = ''; $('#pf-err').classList.remove('okmsg'); $('#rc-err').textContent = ''; $('#rc-in').value = '';
   $('#pf-nick-in').value = (acc.user && acc.user.nick) || '';
   renderProfile(); show('profile');
-  if (acc.user) syncSoon();
+  if (!acc.user) ensureAccount().then(() => { renderAvatarBtn(); if (!$('#screen-profile').hidden) { $('#pf-nick-in').value = (acc.user && acc.user.nick) || ''; renderProfile(); } });
+  else syncSoon();
 }
-$('#btn-account').addEventListener('click', openProfile);
-$('#btn-profile-back').addEventListener('click', () => { stopLogin(); syncMenu(); show('menu'); });
-$('#btn-login').addEventListener('click', startLogin);
-$('#btn-login-cancel').addEventListener('click', () => { stopLogin(); renderProfile(); });
+$('#btn-avatar').addEventListener('click', openProfile);
+$('#btn-profile-back').addEventListener('click', () => { syncMenu(); show('menu'); });
 $('#pf-avs').addEventListener('click', (e) => {
   const b = e.target.closest('button[data-a]'); if (!b) return;
   pfAvatar = b.dataset.a; $('#pf-av').textContent = pfAvatar;
@@ -1273,19 +1291,43 @@ $('#btn-pf-save').addEventListener('click', async () => {
   const btn = $('#btn-pf-save'), err = $('#pf-err');
   btn.disabled = true; err.textContent = ''; err.classList.remove('okmsg');
   try {
-    const r = await api('POST', 'profile', { nick: $('#pf-nick-in').value, avatar: pfAvatar || acc.user.avatar });
+    const body = { avatar: pfAvatar || acc.user.avatar };
+    const nick = $('#pf-nick-in').value.trim();
+    if (nick) body.nick = nick;
+    const r = await api('POST', 'profile', body);
     acc.user = r.user; pfAvatar = '';
-    renderAccountBtn(); renderProfile();
+    renderAvatarBtn(); renderProfile();
     err.textContent = 'Сохранено'; err.classList.add('okmsg');
     syncSoon();
   } catch (e) {
-    if (e.status === 401) { acc.user = null; renderAccountBtn(); renderProfile(); }
+    if (e.status === 401) { acc.user = null; renderAvatarBtn(); renderProfile(); }
     err.textContent = errText(e);
   } finally { btn.disabled = false; }
 });
-$('#btn-logout').addEventListener('click', async () => {
-  try { await api('POST', 'logout', {}); } catch (e) { /* выйдем локально в любом случае */ }
-  acc.user = null; renderAccountBtn(); renderProfile();
+$('#btn-code-copy').addEventListener('click', () => {
+  const rc = getRecovery(); if (!rc) return;
+  let ok = false;
+  try { if (navigator.clipboard) { navigator.clipboard.writeText(rc); ok = true; } } catch (e) { /* ничего */ }
+  $('#pf-rc-note').textContent = ok ? 'Код скопирован. Сохрани его в заметки или отправь себе.' : 'Скопируй код вручную и сохрани.';
+});
+$('#btn-code-new').addEventListener('click', async () => {
+  const btn = $('#btn-code-new'); btn.disabled = true;
+  try { const r = await api('POST', 'auth/newcode', {}); setRecovery(r.recoveryCode); renderProfile(); $('#pf-rc-note').textContent = 'Новый код готов, старый больше не работает. Сохрани его.'; }
+  catch (e) { $('#pf-rc-note').textContent = errText(e); }
+  finally { btn.disabled = false; }
+});
+$('#btn-recover').addEventListener('click', async () => {
+  const btn = $('#btn-recover'), err = $('#rc-err'), code = $('#rc-in').value.trim();
+  err.textContent = ''; if (!code) { err.textContent = ERR_TEXT.bad_code; return; }
+  btn.disabled = true;
+  try {
+    const r = await api('POST', 'auth/recover', { code });
+    acc.user = r.user; setRecovery(code.toUpperCase().replace(/[^A-Z0-9]/g, '').replace(/(.{4})(?=.)/g, '$1-'));
+    $('#rc-in').value = ''; $('#pf-nick-in').value = acc.user.nick || '';
+    renderAvatarBtn(); renderProfile(); syncSoon();
+    $('#pf-err').textContent = 'Ты вошёл в этот профиль'; $('#pf-err').classList.add('okmsg');
+  } catch (e) { err.textContent = errText(e); }
+  finally { btn.disabled = false; }
 });
 
 /* рейтинг */
@@ -1295,7 +1337,7 @@ function ratingRow(e) {
   const row = h('div', 'lrow' + (e.me ? ' me' : ''));
   row.appendChild(h('span', 'rk', e.rank <= 3 ? MEDAL[e.rank - 1] : String(e.rank)));
   row.appendChild(h('span', 'av', e.avatar || '🙂'));
-  const nm = h('span', 'nm', e.nick + (e.me ? ' (ты)' : ''));
+  const nm = h('span', 'nm', e.name + (e.me ? ' (ты)' : ''));
   nm.appendChild(h('small', null, `матчей ${e.matches} · побед ${e.wins}`));
   row.appendChild(nm);
   row.appendChild(h('span', 'pt', String(e.points)));
@@ -1303,23 +1345,22 @@ function ratingRow(e) {
 }
 function renderRating(r) {
   const body = $('#rating-body'); body.textContent = '';
-  if (!r.top.length) body.appendChild(h('p', 'pnote', 'Здесь пока пусто. Сыграй матч, войди через MAX, и ты будешь первым!'));
+  if (!r.top.length) body.appendChild(h('p', 'pnote', 'Здесь пока пусто. Сыграй матч, и ты будешь первым!'));
   r.top.forEach(e => body.appendChild(ratingRow(e)));
   if (r.me && !r.top.some(e => e.me)) { body.appendChild(h('p', 'dots', '…')); body.appendChild(ratingRow(r.me)); }
   const note = $('#rating-note'), pb = $('#btn-rating-profile');
-  if (!acc.user) {
-    note.textContent = 'Ты играешь как гость, тебя нет в рейтинге.';
-    pb.textContent = loginAvailable() ? 'Войти через MAX' : 'Профиль';
-  } else if (acc.user.needsNick) { note.textContent = 'Придумай ник, чтобы появиться в рейтинге.'; pb.textContent = 'Придумать ник'; }
-  else if (!r.me) { note.textContent = 'У тебя пока нет очков в этом разрезе. Сыграй матч!'; pb.textContent = 'Мой профиль'; }
-  else { note.textContent = `Твоё место: ${r.me.rank}, очков: ${r.me.points}.`; pb.textContent = 'Мой профиль'; }
+  pb.textContent = 'Мой профиль';
+  if (!acc.user) note.textContent = 'Профиль загружается. Результаты попадут в рейтинг, как только появится связь.';
+  else if (!r.me) note.textContent = 'У тебя пока нет очков в этом разрезе. Сыграй матч!';
+  else if (r.me.anon) note.textContent = `Ты в рейтинге как «${r.me.name}», место ${r.me.rank}. Впиши ник в профиле, чтобы тебя узнавали.`;
+  else note.textContent = `Твоё место: ${r.me.rank}, очков: ${r.me.points}.`;
 }
 async function loadRating() {
   const seq = ++rt.seq, body = $('#rating-body');
   body.textContent = ''; body.appendChild(h('p', 'pnote', 'Загружаю…'));
   $$('#screen-rating [data-rt]').forEach(b => b.setAttribute('aria-pressed', String(rt[b.dataset.rt] === b.dataset.v)));
   try {
-    if (acc.user) await syncNow();
+    await syncNow();
     const r = await api('GET', `leaderboard?period=${rt.period}&subject=${rt.subject}`);
     if (seq === rt.seq) renderRating(r);
   } catch (e) {
