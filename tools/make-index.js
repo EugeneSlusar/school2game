@@ -26,5 +26,8 @@ ${body}
 </body>
 </html>
 `;
-fs.writeFileSync(out, html);
+const pkg = JSON.parse(fs.readFileSync(require('path').resolve(__dirname, '../package.json'), 'utf8'));
+const d = new Date(Date.now() + 3 * 3600e3).toISOString();   // время по Москве
+const build = pkg.version + ' · ' + d.slice(8, 10) + '.' + d.slice(5, 7) + ' ' + d.slice(11, 16);
+fs.writeFileSync(out, html.split('__BUILD__').join(build));
 console.log('index.html bytes:', html.length);
