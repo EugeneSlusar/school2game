@@ -477,7 +477,7 @@ a.btn{display:flex;align-items:center;justify-content:center;box-sizing:border-b
       <p class="summary" id="summary"></p>
       <button type="button" class="cta" id="btn-start">В игру</button>
     </div>
-    <p class="ver">Версия 1.4.1 · 10.11 15:59</p>
+    <p class="ver">Версия 1.4.1 · 10.11 16:06</p>
   </section>
 
   <!-- ===== Матч ===== -->
@@ -667,7 +667,7 @@ a.btn{display:flex;align-items:center;justify-content:center;box-sizing:border-b
     </div>
     <div class="actions">
       <button type="button" class="btn" id="btn-profile-back">В меню</button>
-      <p class="ver">Версия 1.4.1 · 10.11 15:59</p>
+      <p class="ver">Версия 1.4.1 · 10.11 16:06</p>
     </div>
   </section>
 
@@ -1175,6 +1175,8 @@ $('#btn-reset').addEventListener('click', () => {
 /* ---------- аккаунт, профиль, рейтинг, синхронизация (сервер: папка api/) ---------- */
 /* Каждый игрок сразу получает «неопознанный» профиль со случайным аватаром, результаты уходят в рейтинг.
    Ник и аватар можно вписать в профиле; код восстановления переносит профиль на другое устройство. */
+/* по http браузер не хранит защищённые cookie: профиль не удержится, уводим на https (кроме локальной разработки) */
+if (location.protocol === 'http:' && !/^(localhost|127\.|\[::1\]|192\.168\.|10\.)/.test(location.hostname)) { location.replace('https:' + location.href.slice(5)); }
 const API = 'api/';
 const REC_KEY = 'school2game-recovery';
 const acc = { conf: null, user: null, busy: false };   // conf: ответ /config, null если сервер недоступен

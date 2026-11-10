@@ -56,8 +56,10 @@ $h = one('SELECT recovery_hash FROM users WHERE id = ?', [$u1['id']]); ok($h['re
 ok($st === 200 && $r['user']['id'] === $u1['id'] && $ck && $ck['value'] !== $c1, 'вход по коду (регистр и разделители не важны)');
 [$st, $r] = call('POST', '/auth/recover', ['code' => 'AAAA-AAAA-AAAA']); ok($st === 404 && $r['error'] === 'bad_code', 'неверный код = 404');
 [$st] = call('POST', '/auth/recover', ['code' => 'коротко']); ok($st === 400, 'код неверного вида = 400');
-$limited = false; for ($i = 0; $i < 12; $i++) { [$st] = call('POST', '/auth/recover', ['code' => 'BBBB-BBBB-BBBB'], '', [], '9.9.9.9'); if ($st === 429) $limited = true; }
+$limited = false; for ($i = 0; $i < 20; $i++) { [$st] = call('POST', '/auth/recover', ['code' => 'BBBB-BBBB-BBBB'], '', [], '9.9.9.9'); if ($st === 429) $limited = true; }
 ok($limited, 'перебор кодов ограничен');
+$okAll = true; for ($i = 0; $i < 25; $i++) { [$st] = call('POST', '/auth/recover', ['code' => $code1], '', [], '8.8.8.8'); if ($st !== 200) $okAll = false; }
+ok($okAll, 'удачные входы по коду лимит не расходуют');
 [$st, $r] = call('POST', '/auth/newcode', [], $c1); $code1b = $r['recoveryCode'] ?? '';
 ok($st === 200 && $code1b !== $code1 && $code1b !== '', 'новый код выдан');
 [$st] = call('POST', '/auth/recover', ['code' => $code1], '', [], '5.5.5.5'); ok($st === 404, 'старый код больше не работает');
