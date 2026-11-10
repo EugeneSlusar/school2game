@@ -57,8 +57,8 @@ function match_(string $id, array $o = []): array {
 }
 
 // --- разбор пути
-foreach (['/school2game/api/health' => '/health', '/school2game/www/api/auth/start' => '/auth/start', '/api/leaderboard' => '/leaderboard',
-          '/school2game/www/api/' => '/', '/school2game/www/api/index.php' => '/', '/api/max/webhook/' => '/max/webhook'] as $path => $route) {
+foreach (['/school2game/api/health' => '/health', '/school2game/public_html/api/auth/start' => '/auth/start', '/api/leaderboard' => '/leaderboard',
+          '/school2game/public_html/api/' => '/', '/school2game/public_html/api/index.php' => '/', '/api/max/webhook/' => '/max/webhook'] as $path => $route) {
     ok(S2G\routeFromPath($path) === $route, "путь $path → $route (получили " . S2G\routeFromPath($path) . ')');
 }
 
