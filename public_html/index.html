@@ -1199,7 +1199,7 @@ function renderAvatarBtn() {
   const u = acc.user;
   $('#avb-av').textContent = u ? (u.avatar || '🙂') : '🙂';
   $('#avb-name').textContent = u ? (u.nick || 'Неопознанный') : 'Гость';
-  $('#avb-hint').textContent = u ? (u.nick ? 'мой профиль' : 'впиши своё имя') : (acc.conf ? 'загружаю…' : 'нет связи');
+  $('#avb-hint').textContent = u ? (u.nick ? 'мой профиль' : 'впиши своё имя') : (acc.conf ? (acc.err ? 'нажми, чтобы повторить' : 'загружаю…') : 'нет связи');
   $('#avb-dot').hidden = !(u && !u.nick);
 }
 async function ensureAccount() {
