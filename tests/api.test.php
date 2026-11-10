@@ -88,7 +88,7 @@ foreach ([
     'нереальные очки' => [match_('a1', ['you' => 49, 'correct' => 3, 'byTopic' => ['mul' => ['n' => 6, 'ok' => 3]], 'wrong' => 2, 'timeouts' => 1]), 'too_many_points'],
     'слишком быстро' => [match_('a2', ['correct' => 300, 'byTopic' => ['mul' => ['n' => 300, 'ok' => 300]], 'you' => 40, 'wrong' => 0, 'timeouts' => 0]), 'too_fast'],
     'исход не сходится' => [match_('a3', ['outcome' => 'lose']), 'outcome_mismatch'],
-    'темы не сходятся' => [match_('a4', ['byTopic' => ['mul' => ['n' => 15, 'ok' => 5]]]), 'topics_mismatch'],
+    'темы не сходятся' => [match_('a4', ['byTopic' => ['mul' => ['n' => 15, 'ok' => 14]]]), 'topics_mismatch'],
     'чужая тема предмета' => [match_('a5', ['byTopic' => ['vowel' => ['n' => 15, 'ok' => 12]]]), 'bad_topics'],
     'будущее' => [match_('a6', ['t' => ($now + 86400 * 3) * 1000]), 'bad_time'],
     'слишком короткий' => [match_('a7', ['sec' => 2]), 'bad_duration'],
@@ -101,6 +101,8 @@ foreach ([
 }
 [$row] = S2G\checkMatch(match_('good'), $now); ok($row !== null && $row['score'] === 20, 'нормальный матч принят');
 [$row] = S2G\checkMatch(match_('t', ['format' => '2x2', 'you' => 60, 'foe' => 30, 'correct' => 12]), $now); ok($row !== null && $row['score'] === 30, '2×2: очки на игрока');
+[$row] = S2G\checkMatch(match_('retry', ['byTopic' => ['mul' => ['n' => 14, 'ok' => 11]]]), $now);
+ok($row !== null, 'верный ответ после ошибки на том же вопросе не ломает проверку тем');
 [$row] = S2G\checkMatch(match_('w', ['you' => 50, 'foe' => 20, 'sec' => 70, 'correct' => 25, 'wrong' => 0, 'timeouts' => 0, 'byTopic' => ['mul' => ['n' => 25, 'ok' => 25]]]), $now);
 ok($row !== null, 'матч до цели 50 за 70 с принят');
 

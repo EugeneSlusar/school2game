@@ -74,7 +74,9 @@ function checkMatch(mixed $m, ?int $now = null): array {
         if ($n === null || $ok === null || $ok > $n) return [null, 'bad_topics'];
         $sumOk += $ok; $sumN += $n; $clean[$tid] = ['n' => $n, 'ok' => $ok];
     }
-    if ($sumOk !== $correct || $sumN < $correct || $sumN > $attempts) return [null, 'topics_mismatch'];
+    // Игра пишет в тему только первый исход вопроса, а повторный верный ответ после ошибки идёт в `correct`:
+    // поэтому верных по темам может быть меньше, чем верных ответов, но не больше.
+    if ($sumOk > $correct || $sumN > $attempts || $correct > $sumN + $wrong) return [null, 'topics_mismatch'];
 
     return [[
         'id' => $id, 'played_at' => min($playedAt, $now), 'subject' => $subject, 'topic' => $topic, 'level' => $level,
