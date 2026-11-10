@@ -4,7 +4,7 @@
   "description": "school2game: учись с игровым вайбом. Соревновательная игра на скорость для 5 класса",
   "scripts": {
     "sync": "cap sync android",
-    "build": "node tools/make-index.js docs/artifact-version.html www/index.html",
+    "build": "node tools/make-index.js docs/artifact-version.html public_html/index.html",
     "test": "node tools/gentest.js",
     "apk": "cap sync android && cd android && ./gradlew assembleDebug",
     "test:api": "php tests/api.test.php",

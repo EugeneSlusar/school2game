@@ -1,15 +1,15 @@
-# Корень сайта = корень репозитория. Игра и API лежат в www/, служебное закрываем.
+# Корень сайта = корень репозитория. Игра и API лежат в public_html/, служебное закрываем.
 <FilesMatch "^\.(env|git|deploy)">
   Require all denied
 </FilesMatch>
 <IfModule mod_rewrite.c>
   RewriteEngine On
   RewriteRule ^(server|tests|tools|docs|android|\.git|\.deploy)(/|$) - [F,L]
-  # Главная: всегда игра из www/, даже если в корне остался старый index.html
-  RewriteRule ^(index\.html)?$ www/index.html [L]
-  # Всё, чего нет в корне (api/, fonts/, иконки), берём из www/
-  RewriteCond %{REQUEST_URI} !/www/
+  # Главная: всегда игра из public_html/, даже если в корне остался старый index.html
+  RewriteRule ^(index\.html)?$ public_html/index.html [L]
+  # Всё, чего нет в корне (api/, fonts/, иконки), берём из public_html/
+  RewriteCond %{REQUEST_URI} !/public_html/
   RewriteCond %{REQUEST_FILENAME} !-f
   RewriteCond %{REQUEST_FILENAME} !-d
-  RewriteRule ^(.+)$ www/$1 [L]
+  RewriteRule ^(.+)$ public_html/$1 [L]
 </IfModule>

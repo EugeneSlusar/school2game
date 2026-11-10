@@ -1,7 +1,7 @@
 {
   "appId": "ru.slusar.tablichnysport",
   "appName": "school2game",
-  "webDir": "www",
+  "webDir": "public_html",
   "backgroundColor": "#f4f7fc",
   "android": { "adjustMarginsForEdgeToEdge": "force" }
 }

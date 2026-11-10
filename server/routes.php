@@ -280,7 +280,7 @@ function dispatch(array $req): array {
     }
 }
 
-/** Маршрут API из пути: работает и для /api/..., и для /www/api/..., и при подпапке сайта */
+/** Маршрут API из пути: работает и для /api/..., и для /public_html/api/..., и при подпапке сайта */
 function routeFromPath(string $path): string {
     if (preg_match('#/api(/[^?]*)?$#', $path, $m)) $route = $m[1] ?? '/';
     else $route = $path;
@@ -319,7 +319,7 @@ function run(): void {
 /**
  * Подготовка при каждом запуске: подключение к БД и применение новых миграций.
  * Если новых файлов нет, это один быстрый SELECT. Возвращает код ошибки или null.
- * Сбой тут отключает только API: статичная игра в www/ продолжает работать.
+ * Сбой тут отключает только API: статичная игра в public_html/ продолжает работать.
  */
 function prepare(): ?string {
     try { db(); } catch (\Throwable $e) { error_log('s2g db: ' . $e->getMessage()); return 'db_unavailable'; }
