@@ -26,6 +26,30 @@ function rateLimit(string $key, int $max, int $window): bool {
     q('UPDATE rate_limits SET hits = hits + 1 WHERE k = ?', [$key]);
     return true;
 }
+/** Только проверить, не исчерпан ли лимит (ничего не записывает) */
+function rateBlocked(string $key, int $max, int $window): bool {
+    $row = one('SELECT hits, win_start FROM rate_limits WHERE k = ?', [$key]);
+    return $row && (int)$row['win_start'] + $window > time() && (int)$row['hits'] >= $max;
+}
+/** Записать одну попытку (для неудачных входов) */
+function rateHit(string $key, int $window): void { rateLimit($key, PHP_INT_MAX, $window); }
+/** Настоящий адрес посетителя: за прокси (nginx) REMOTE_ADDR у всех одинаковый, берём X-Real-IP / X-Forwarded-For */
+function clientIp(): string {
+    $ip = $_SERVER['REMOTE_ADDR'] ?? '';
+    $private = $ip === '' || !filter_var($ip, FILTER_VALIDATE_IP, FILTER_FLAG_NO_PRIV_RANGE | FILTER_FLAG_NO_RES_RANGE);
+    if ($private) {
+        foreach (['HTTP_X_REAL_IP', 'HTTP_X_FORWARDED_FOR'] as $h) {
+            $v = trim(explode(',', $_SERVER[$h] ?? '')[0]);
+            if ($v !== '' && filter_var($v, FILTER_VALIDATE_IP)) return $v;
+        }
+    }
+    return $ip;
+}
+function isHttps(): bool {
+    return (($_SERVER['HTTPS'] ?? '') !== '' && strtolower($_SERVER['HTTPS']) !== 'off')
+        || strtolower($_SERVER['HTTP_X_FORWARDED_PROTO'] ?? '') === 'https'
+        || strtolower($_SERVER['HTTP_X_FORWARDED_SSL'] ?? '') === 'on';
+}
 function ipKey(array $req): string { return substr(hash('sha256', 'school2game|' . ($req['ip'] ?? '')), 0, 16); }
 
 /* ---------- пользователи и сессии ---------- */
@@ -79,11 +103,11 @@ function authGuest(array $req): array {
 
 /** Вход по коду восстановления (другое устройство, потеря cookie) */
 function authRecover(array $req): array {
-    if (!rateLimit('recover:' . ipKey($req), 10, 600)) fail(429, 'too_many_requests');
+    $rk = 'recover:' . ipKey($req);
+    if (rateBlocked($rk, 15, 600)) fail(429, 'too_many_requests');   // считаем только неудачные попытки
     $code = normalizeCode($req['body']['code'] ?? null);
-    if ($code === null) fail(400, 'bad_code');
-    $user = one('SELECT * FROM users WHERE recovery_hash = ?', [hashToken($code)]);
-    if (!$user) fail(404, 'bad_code');
+    $user = $code === null ? null : one('SELECT * FROM users WHERE recovery_hash = ?', [hashToken($code)]);
+    if (!$user) { rateHit($rk, 600); fail($code === null ? 400 : 404, 'bad_code'); }
     return [200, ['user' => userView($user)], startSession((int)$user['id'])];
 }
 
@@ -265,7 +289,7 @@ function run(): void {
     }
     $req = [
         'method' => $_SERVER['REQUEST_METHOD'] ?? 'GET', 'route' => $route, 'query' => $_GET, 'body' => $body,
-        'cookie' => $_COOKIE[COOKIE] ?? '', 'ip' => $_SERVER['REMOTE_ADDR'] ?? '',
+        'cookie' => $_COOKIE[COOKIE] ?? '', 'ip' => clientIp(),
         'jsonType' => str_contains(strtolower($_SERVER['CONTENT_TYPE'] ?? ''), 'application/json'),
     ];
     $err = prepare();
@@ -276,7 +300,7 @@ function run(): void {
     header('Cache-Control: no-store');
     if ($cookie) {
         setcookie(COOKIE, $cookie['value'], [
-            'expires' => $cookie['expires'], 'path' => '/', 'secure' => str_starts_with(env('APP_URL'), 'https'),
+            'expires' => $cookie['expires'], 'path' => '/', 'secure' => isHttps(),   // по http cookie с Secure браузер выбросит, профиль не удержится
             'httponly' => true, 'samesite' => 'Lax',
         ]);
     }
