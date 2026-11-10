@@ -10,13 +10,13 @@
 Полные решения и план: `docs/plan.md`. Передача контекста и нюансы: `docs/HANDOFF.md`. Прочитай оба файла перед работой.
 
 ## Текущий приоритет
-Только веб-версия (Android на паузе). Хостинг: Timeweb Optimo (шаред), PHP + MySQL, сайт https://lab.orgbox.net/school2game/. Бэкенд (`server/`, `www/api/`) написан: вход через бота MAX, рейтинг, синхронизация гостя. Следующий шаг: клиент (экран входа, ник, «Рейтинг», отправка матчей) и разбор автодеплоя. Подробности: `docs/plan.md`, `docs/HANDOFF.md`.
+Только веб-версия (Android на паузе). Хостинг: Timeweb Optimo (шаред), PHP + MySQL, сайт https://lab.orgbox.net/school2game/. Бэкенд (`server/`, `www/api/`) и клиент (экраны «Профиль» и «Рейтинг», вход через MAX, смена ника и аватара, синхронизация матчей) написаны. Блокер: автодеплой не проходит (нет секрета `DEPLOY_SSH_KEY` и скрипта `.deploy/sync_repo_from_git.sh`). Дальше: публикация в RuStore. Подробности: `docs/plan.md`, `docs/HANDOFF.md`.
 
 ## Структура
 - `docs/artifact-version.html` — ИСТОЧНИК ИСТИНЫ: вся игра в одном файле (HTML, CSS, JS), шрифты через Google Fonts.
 - `www/index.html` — ГЕНЕРИРУЕТСЯ из источника командой `npm run build` (подставляет локальные шрифты `www/fonts/`). Руками не править.
 - `tools/make-index.js` — генератор `www/index.html`; `tools/gentest.js` — проверка генераторов заданий; `tools/smoke.js` — дымовой тест матча в jsdom (нужен `npm i jsdom` вне репозитория); `tools/make-icons.py` — иконки.
-- `server/` — PHP-бэкенд (бот MAX, рейтинг, схема БД), `www/api/index.php` — единственная точка входа, `tests/api.test.php` — тесты на SQLite (`npm run test:api`). Секреты только в `.env` (в git не попадает, образец `.env.example`).
+- `server/` — PHP-бэкенд (бот MAX, рейтинг, схема БД), `www/api/index.php` — единственная точка входа, `tests/api.test.php` — тесты на SQLite (`npm run test:api`), `tests/ui.test.js` — тест экранов в jsdom с поддельным сервером (`NODE_PATH=<jsdom> npm run test:ui`, как и `tools/smoke.js`). Секреты только в `.env` (в git не попадает, образец `.env.example`).
 - `android/`, `capacitor.config.json` — обёртка Capacitor 7 (appId `ru.slusar.tablichnysport`, не менять, иначе APK не встанет поверх старого).
 - `.github/workflows/android-apk.yml` — сборка debug APK в GitHub Actions (не проверена).
 

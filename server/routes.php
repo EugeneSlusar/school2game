@@ -251,7 +251,7 @@ function leaderboard(array $req): array {
 function routes(): array {
     return [
         'GET /health' => 'S2G\health',
-        'GET /config' => fn() => [200, ['login' => maxConfigured()]],
+        'GET /config' => fn() => [200, ['login' => maxConfigured(), 'avatars' => AVATARS]],
         'POST /auth/start' => 'S2G\authStart',
         'POST /auth/poll' => 'S2G\authPoll',
         'POST /max/webhook' => 'S2G\webhook',

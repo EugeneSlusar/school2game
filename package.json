@@ -7,7 +7,8 @@
     "build": "node tools/make-index.js docs/artifact-version.html www/index.html",
     "test": "node tools/gentest.js",
     "apk": "cap sync android && cd android && ./gradlew assembleDebug",
-    "test:api": "php tests/api.test.php"
+    "test:api": "php tests/api.test.php",
+    "test:ui": "node tests/ui.test.js"
   },
   "dependencies": {
     "@capacitor/android": "^7.6.10",
