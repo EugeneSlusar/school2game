@@ -1190,7 +1190,7 @@ const ERR_TEXT = {
   nick_not_allowed: 'Такой ник нельзя. Выбери другой', bad_avatar: 'Выбери аватар из списка', not_logged_in: 'Профиль не найден, попробуй позже',
   bad_code: 'Код не подошёл. Проверь буквы и цифры', too_many_requests: 'Слишком много попыток, подожди немного'
 };
-const errText = (e) => ERR_TEXT[e.message] || (e.status ? 'Сервер не смог ответить, попробуй позже' : 'Нет связи с сервером');
+const errText = (e) => ERR_TEXT[e.message] || (e.status ? 'Сервер не смог ответить, попробуй позже (' + e.message + ')' : 'Нет связи с сервером (' + (e.message || 'сеть') + ')');
 const unsentCount = () => prefs.matches.filter(m => !m.sent).length;
 const userName = (u) => u.name || u.nick || 'Неопознанный';
 
@@ -1207,9 +1207,9 @@ async function ensureAccount() {
   const saved = getRecovery();
   if (saved) {
     try { acc.user = (await api('POST', 'auth/recover', { code: saved })).user; return; }
-    catch (e) { if (e.status !== 404 && e.status !== 400) return; }   // нет связи или лимит: попробуем позже
+    catch (e) { if (e.status !== 404 && e.status !== 400) { acc.err = errText(e); return; } }   // нет связи или лимит: попробуем позже
   }
-  try { const r = await api('POST', 'auth/guest', {}); acc.user = r.user; setRecovery(r.recoveryCode); } catch (e) { /* позже */ }
+  try { const r = await api('POST', 'auth/guest', {}); acc.user = r.user; setRecovery(r.recoveryCode); } catch (e) { acc.err = errText(e); }
 }
 /* (пере)подключение: конфиг, текущий профиль, при необходимости новый или по коду. Можно звать сколько угодно раз. */
 async function refreshAccount() {
