@@ -623,6 +623,7 @@ a.btn{display:flex;align-items:center;justify-content:center;box-sizing:border-b
       <p id="pf-sub"></p>
     </header>
     <p class="pnote" id="pf-offline" hidden></p>
+    <button class="btn" id="btn-pf-retry" type="button" hidden>Повторить</button>
     <div class="stack" id="pf-user" hidden>
       <div class="pcard"><span class="av" id="pf-av"></span><b id="pf-nick"></b></div>
       <div class="fld"><label for="pf-nick-in">Ник</label><input id="pf-nick-in" maxlength="16" autocomplete="off" autocapitalize="off" spellcheck="false" placeholder="Придумай ник"></div>
@@ -1199,11 +1200,20 @@ async function ensureAccount() {
   }
   try { const r = await api('POST', 'auth/guest', {}); acc.user = r.user; setRecovery(r.recoveryCode); } catch (e) { /* позже */ }
 }
+/* (пере)подключение: конфиг, текущий профиль, при необходимости новый или по коду. Можно звать сколько угодно раз. */
+async function refreshAccount() {
+  acc.err = '';
+  if (!acc.conf) { try { acc.conf = await api('GET', 'config'); } catch (e) { acc.conf = null; acc.err = errText(e); return; } }
+  if (acc.user) return;
+  try { acc.user = (await api('GET', 'me')).user; }
+  catch (e) { if (e.status === 401) await ensureAccount(); else acc.err = errText(e); }
+  if (!acc.user && !acc.err) acc.err = 'Не удалось создать профиль, попробуй ещё раз';
+}
 async function initAccount() {
-  try { acc.conf = await api('GET', 'config'); } catch (e) { acc.conf = null; renderAvatarBtn(); return; }
-  try { acc.user = (await api('GET', 'me')).user; } catch (e) { if (e.status === 401) await ensureAccount(); }
+  await refreshAccount();
   renderAvatarBtn();
-  syncSoon();
+  if (acc.user) syncSoon();
+  else setTimeout(() => { if (!acc.user) initAccount(); }, 15000);   // сервер мог быть занят: пробуем снова
 }
 
 /* отправка матчей и статистики на сервер; безопасно вызывать сколько угодно раз */
@@ -1240,10 +1250,11 @@ function renderProfile() {
   const u = acc.user, off = $('#pf-offline');
   $('#pf-user').hidden = !u;
   off.hidden = !!u;
+  $('#btn-pf-retry').hidden = !!u;
   if (!u) {
     $('#pf-sub').textContent = 'Ты играешь без профиля.';
-    off.textContent = acc.conf ? 'Профиль загружается. Если долго не появляется, вернись в меню и зайди снова.'
-                               : 'Нет связи с сервером. Игра работает, результаты хранятся на этом устройстве и отправятся в рейтинг, когда связь появится.';
+    off.textContent = (acc.err ? acc.err + '. ' : '') + (acc.conf ? 'Профиль пока не загрузился. Нажми «Повторить».'
+                               : 'Нет связи с сервером. Игра работает, результаты хранятся на этом устройстве и отправятся в рейтинг, когда связь появится.');
     return;
   }
   $('#pf-sub').textContent = u.nick ? 'Ник и аватар видны другим игрокам в рейтинге. Их можно менять.'
@@ -1266,9 +1277,16 @@ function openProfile() {
   pfAvatar = ''; $('#pf-err').textContent = ''; $('#pf-err').classList.remove('okmsg'); $('#rc-err').textContent = ''; $('#rc-in').value = '';
   $('#pf-nick-in').value = (acc.user && acc.user.nick) || '';
   renderProfile(); show('profile');
-  if (!acc.user) ensureAccount().then(() => { renderAvatarBtn(); if (!$('#screen-profile').hidden) { $('#pf-nick-in').value = (acc.user && acc.user.nick) || ''; renderProfile(); } });
+  if (!acc.user) retryProfile();
   else syncSoon();
 }
+async function retryProfile() {
+  const btn = $('#btn-pf-retry'); btn.disabled = true;
+  await refreshAccount(); renderAvatarBtn(); btn.disabled = false;
+  if (!$('#screen-profile').hidden) { $('#pf-nick-in').value = (acc.user && acc.user.nick) || ''; renderProfile(); }
+  if (acc.user) syncSoon();
+}
+$('#btn-pf-retry').addEventListener('click', retryProfile);
 $('#btn-avatar').addEventListener('click', openProfile);
 $('#btn-profile-back').addEventListener('click', () => { syncMenu(); show('menu'); });
 $('#pf-avs').addEventListener('click', (e) => {
@@ -1280,10 +1298,17 @@ $('#btn-pf-save').addEventListener('click', async () => {
   const btn = $('#btn-pf-save'), err = $('#pf-err');
   btn.disabled = true; err.textContent = ''; err.classList.remove('okmsg');
   try {
-    const body = { avatar: pfAvatar || acc.user.avatar };
+    const body = { avatar: pfAvatar || (acc.user && acc.user.avatar) || undefined };
     const nick = $('#pf-nick-in').value.trim();
     if (nick) body.nick = nick;
-    const r = await api('POST', 'profile', body);
+    let r;
+    try { r = await api('POST', 'profile', body); }
+    catch (e) {
+      if (e.status !== 401) throw e;
+      acc.user = null; await refreshAccount();           // сессия пропала: вернём профиль (по коду) и повторим
+      if (!acc.user) throw e;
+      r = await api('POST', 'profile', body);
+    }
     acc.user = r.user; pfAvatar = '';
     renderAvatarBtn(); renderProfile();
     err.textContent = 'Сохранено'; err.classList.add('okmsg');

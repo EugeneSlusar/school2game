@@ -11,10 +11,11 @@ const sleep = (ms) => new Promise(r => setTimeout(r, ms));
 const AV = ['⚽', '🏀', '🏆', '🦊', '🐼', '🐯'];
 const CODE = 'ABCD-EFGH-JKMN';
 function makeServer(opts) {
-  const st = { cookie: !!opts.cookie, user: { id: 7, nick: null, name: 'Неопознанный №7', avatar: '🐼', needsNick: true }, calls: [], synced: [], guests: 0, recovers: 0 };
+  const st = { cookie: !!opts.cookie, user: { id: 7, nick: null, name: 'Неопознанный №7', avatar: '🐼', needsNick: true }, calls: [], synced: [], guests: 0, recovers: 0, meFails: 0 };
   const handler = (method, path, body) => {
     st.calls.push(method + ' ' + path);
     if (path === 'config') return [200, { accounts: true, avatars: AV }];
+    if (path === 'me' && opts.failMe && st.meFails++ < opts.failMe) return [500, { error: 'boom' }];
     if (path === 'me') return st.cookie ? [200, { user: st.user }] : [401, { error: 'not_logged_in' }];
     if (path === 'auth/guest') { st.guests++; st.cookie = true; return [200, { user: st.user, recoveryCode: CODE }]; }
     if (path === 'auth/recover') {
@@ -140,6 +141,18 @@ const seed = { 'tablichny-sport-v1': JSON.stringify({ guestId: 'g1', savedAt: 1,
   // 7. код на устройстве устарел: создаём нового
   t = await boot({}, { 'school2game-recovery': 'AAAA-AAAA-AAAA' });
   ok(t.srv.st.recovers === 1 && t.srv.st.guests === 1 && t.w.localStorage.getItem('school2game-recovery') === CODE, 'неверный сохранённый код заменён новым профилем');
+
+  // 8. сессия пропала посреди работы: сохранение само возвращает профиль и повторяется
+  t = await boot({ cookie: true }, { 'school2game-recovery': CODE });
+  t.srv.st.cookie = false;
+  t.click('#btn-avatar'); t.$('#pf-nick-in').value = 'Молния'; t.click('#btn-pf-save'); await sleep(120);
+  ok(t.$('#pf-err').textContent === 'Сохранено' && t.$('#avb-name').textContent === 'Молния', 'при потере сессии ник всё равно сохраняется');
+
+  // 9. сервер сначала ответил ошибкой: в профиле есть «Повторить», и он работает
+  t = await boot({ cookie: true, failMe: 1 });
+  ok(t.$('#avb-name').textContent === 'Гость', 'при ошибке сервера аватар пока «Гость»');
+  t.click('#btn-avatar'); await sleep(100);
+  ok(!t.$('#pf-user').hidden && t.$('#pf-offline').hidden, 'профиль сам переподключается при открытии');
 
   console.log(fails ? `\nПровалено: ${fails} из ${n}` : `UI: все ${n} проверок пройдены`);
   process.exit(fails ? 1 : 0);
