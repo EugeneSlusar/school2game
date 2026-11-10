@@ -10,14 +10,14 @@
 Полные решения и план: `docs/plan.md`. Передача контекста и нюансы: `docs/HANDOFF.md`. Прочитай оба файла перед работой.
 
 ## Текущий приоритет
-Только веб-версия (Android на паузе). Хостинг: Timeweb Optimo (шаред), PHP + MySQL, сайт https://lab.orgbox.net/school2game/. Бэкенд (`server/`, `public_html/api/`) и клиент (экраны «Профиль» и «Рейтинг», вход через MAX, смена ника и аватара, синхронизация матчей) написаны. Автодеплой настроен (GitHub Actions по SSH запускает на сервере `.deploy/sync_repo_from_git.sh --auto`; он не затирает неотслеживаемые файлы, конфликт останавливает деплой). `.env` лежит на сервере в корне, в git его нет. Дальше: публикация в RuStore. Подробности: `docs/plan.md`, `docs/HANDOFF.md`.
+Только веб-версия (Android на паузе). Хостинг: Timeweb Optimo (шаред), PHP + MySQL, сайт https://lab.orgbox.net/school2game/. Бэкенд (`server/`, `public_html/api/`) и клиент (аватар-кнопка вверху меню, экраны «Профиль» и «Рейтинг», смена ника и аватара, синхронизация матчей) написаны. Авторизация анонимная: игрок сразу «Неопознанный» со случайным аватаром, перенос на другое устройство по коду восстановления; внешних входов (Яндекс, Google, MAX) нет и не планируются. Ники проходят фильтр мата (`server/profanity.php`). Автодеплой настроен (GitHub Actions по SSH запускает на сервере `.deploy/sync_repo_from_git.sh --auto`; он не затирает неотслеживаемые файлы, конфликт останавливает деплой). `.env` лежит на сервере в корне, в git его нет. Дальше: публикация в RuStore. Подробности: `docs/plan.md`, `docs/HANDOFF.md`.
 
 ## Структура
 - `docs/artifact-version.html` — ИСТОЧНИК ИСТИНЫ: вся игра в одном файле (HTML, CSS, JS), шрифты через Google Fonts.
 - `public_html/index.html` — ГЕНЕРИРУЕТСЯ из источника командой `npm run build` (подставляет локальные шрифты `public_html/fonts/`). Руками не править.
 - `index.html` в корне — символьная ссылка на `public_html/index.html` (сайт публикуется из корня), не править.
 - `tools/make-index.js` — генератор `public_html/index.html`; `tools/gentest.js` — проверка генераторов заданий; `tools/smoke.js` — дымовой тест матча в jsdom (нужен `npm i jsdom` вне репозитория); `tools/make-icons.py` — иконки.
-- `server/` — PHP-бэкенд (бот MAX, рейтинг, схема БД), `public_html/api/index.php` — единственная точка входа, `tests/api.test.php` — тесты на SQLite (`npm run test:api`), `tests/ui.test.js` — тест экранов в jsdom с поддельным сервером (`NODE_PATH=<jsdom> npm run test:ui`, как и `tools/smoke.js`). Секреты только в `.env` (в git не попадает, образец `.env.example`).
+- `server/` — PHP-бэкенд (профили, рейтинг, фильтр ников, миграции), `public_html/api/index.php` — единственная точка входа, `tests/api.test.php` — тесты на SQLite (`npm run test:api`), `tests/profanity.test.php` — фильтр ников (`npm run test:profanity`), `tests/ui.test.js` — тест экранов в jsdom с поддельным сервером (`NODE_PATH=<jsdom> npm run test:ui`, как и `tools/smoke.js`). Секреты только в `.env` (в git не попадает, образец `.env.example`).
 - `android/`, `capacitor.config.json` — обёртка Capacitor 7 (appId `ru.slusar.tablichnysport`, не менять, иначе APK не встанет поверх старого).
 - `.github/workflows/android-apk.yml` — сборка debug APK в GitHub Actions (не проверена).
 

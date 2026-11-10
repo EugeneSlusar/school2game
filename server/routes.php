@@ -5,44 +5,34 @@ namespace S2G;
 require_once __DIR__ . '/bootstrap.php';
 require_once __DIR__ . '/schema.php';
 require_once __DIR__ . '/validate.php';
+require_once __DIR__ . '/profanity.php';
 
 const COOKIE = 's2g_sess';
 const CODE_ALPHABET = 'ABCDEFGHJKMNPQRSTUVWXYZ23456789';
-const CODE_TTL = 600;
+const CODE_LEN = 12;
 const MAX_BATCH = 200;
+const GUEST_PER_DAY = 200; // с одного адреса: в школе у многих детей общий IP
 
-/** Вход через MAX включён, только если заданы токен бота, секрет вебхука и ссылка на бота. Без них игра и рейтинг для гостей работают. */
-function maxConfigured(): bool {
-    return env('MAX_BOT_TOKEN') !== '' && env('MAX_WEBHOOK_SECRET') !== '' && env('MAX_BOT_LINK') !== '';
+/** Ограничитель частоты: true, если запрос разрешён. Окно фиксированное. */
+function rateLimit(string $key, int $max, int $window): bool {
+    $now = time();
+    $row = one('SELECT hits, win_start FROM rate_limits WHERE k = ?', [$key]);
+    if (!$row || (int)$row['win_start'] + $window <= $now) {
+        q('DELETE FROM rate_limits WHERE k = ?', [$key]);
+        insertIgnore('rate_limits', ['k' => $key, 'hits' => 1, 'win_start' => $now]);
+        return true;
+    }
+    if ((int)$row['hits'] >= $max) return false;
+    q('UPDATE rate_limits SET hits = hits + 1 WHERE k = ?', [$key]);
+    return true;
 }
-
-/* ---------- HTTP к MAX (подменяется в тестах) ---------- */
-$GLOBALS['s2g_http'] = null;
-function httpPost(string $url, array $body, array $headers): array {
-    if ($GLOBALS['s2g_http']) return ($GLOBALS['s2g_http'])($url, $body, $headers);
-    $ch = curl_init($url);
-    curl_setopt_array($ch, [
-        CURLOPT_POST => true, CURLOPT_RETURNTRANSFER => true, CURLOPT_TIMEOUT => 8,
-        CURLOPT_HTTPHEADER => array_merge(['Content-Type: application/json'], $headers),
-        CURLOPT_POSTFIELDS => json_encode($body, JSON_UNESCAPED_UNICODE),
-    ]);
-    $out = curl_exec($ch);
-    $code = (int)curl_getinfo($ch, CURLINFO_HTTP_CODE);
-    curl_close($ch);
-    return [$code, $out === false ? '' : (string)$out];
-}
-function maxSend(int $maxUserId, string $text): void {
-    $token = env('MAX_BOT_TOKEN');
-    if ($token === '') return;
-    try {
-        // токен идёт в заголовке Authorization без Bearer, адресат в query
-        httpPost(env('MAX_API_BASE', 'https://platform-api2.max.ru') . '/messages?user_id=' . $maxUserId, ['text' => $text], ['Authorization: ' . $token]);
-    } catch (\Throwable $e) { /* ответ пользователю не критичен */ }
-}
+function ipKey(array $req): string { return substr(hash('sha256', 'school2game|' . ($req['ip'] ?? '')), 0, 16); }
 
 /* ---------- пользователи и сессии ---------- */
+/** Имя в рейтинге: ник или «Неопознанный №N», пока игрок не вписал свои данные */
+function displayName(array $u): string { return $u['nick'] !== null ? (string)$u['nick'] : 'Неопознанный №' . (int)$u['id']; }
 function userView(array $u): array {
-    return ['id' => (int)$u['id'], 'nick' => $u['nick'], 'avatar' => $u['avatar'], 'needsNick' => $u['nick'] === null];
+    return ['id' => (int)$u['id'], 'nick' => $u['nick'], 'name' => displayName($u), 'avatar' => $u['avatar'], 'needsNick' => $u['nick'] === null];
 }
 function sessionUser(array $req): ?array {
     $tok = $req['cookie'] ?? '';
@@ -53,90 +43,60 @@ function sessionUser(array $req): ?array {
 }
 function requireUser(array $req): array { return sessionUser($req) ?? fail(401, 'not_logged_in'); }
 
-function randomCode(): string {
-    $s = '';
-    for ($i = 0; $i < 8; $i++) $s .= CODE_ALPHABET[random_int(0, strlen(CODE_ALPHABET) - 1)];
-    return $s;
+/* ---------- аккаунты: анонимный игрок + код восстановления ---------- */
+function newRecoveryCode(): string {
+    $c = '';
+    for ($i = 0; $i < CODE_LEN; $i++) $c .= CODE_ALPHABET[random_int(0, strlen(CODE_ALPHABET) - 1)];
+    return implode('-', str_split($c, 4));
 }
-
-/* ---------- обработчики ---------- */
-function authStart(array $req): array {
-    if (!maxConfigured()) fail(503, 'login_not_configured');
-    $now = time();
-    q('DELETE FROM login_codes WHERE expires_at < ?', [$now - 3600]);
-    q('DELETE FROM sessions WHERE expires_at < ?', [$now]);
-    $ip = hash('sha256', ($req['ip'] ?? '') . '|' . env('MAX_WEBHOOK_SECRET'));
-    $ip = substr($ip, 0, 16);
-    $recent = one('SELECT COUNT(*) c FROM login_codes WHERE ip_hash = ? AND created_at > ?', [$ip, $now - CODE_TTL]);
-    if ((int)$recent['c'] >= 20) fail(429, 'too_many_requests');
-    $poll = bin2hex(random_bytes(24));
-    for ($i = 0; $i < 5; $i++) {
-        $code = randomCode();
-        $ins = insertIgnore('login_codes', ['code' => $code, 'poll_hash' => hashToken($poll), 'status' => 'pending', 'user_id' => null,
-            'ip_hash' => $ip, 'created_at' => $now, 'expires_at' => $now + CODE_TTL]);
-        if ($ins) {
-            $link = env('MAX_BOT_LINK');
-            return [200, ['code' => $code, 'poll' => $poll, 'expiresIn' => CODE_TTL,
-                'link' => $link !== '' ? $link . '?start=' . $code : null]];
-        }
-    }
-    fail(500, 'code_generation_failed');
+function normalizeCode(mixed $code): ?string {
+    if (!is_string($code)) return null;
+    $c = strtr(strtoupper($code), ['О' => 'O', 'І' => 'I']);
+    $c = preg_replace('/[^' . CODE_ALPHABET . ']/', '', $c) ?? '';
+    return strlen($c) === CODE_LEN ? $c : null;
 }
-
-function authPoll(array $req): array {
-    $poll = $req['body']['poll'] ?? null;
-    if (!is_string($poll) || !preg_match('/^[a-f0-9]{48}$/', $poll)) fail(400, 'bad_poll');
-    $row = one('SELECT * FROM login_codes WHERE poll_hash = ?', [hashToken($poll)]);
-    if (!$row || $row['expires_at'] < time() || $row['status'] === 'used') return [200, ['status' => 'expired']];
-    if ($row['status'] !== 'confirmed') return [200, ['status' => 'pending']];
-    // атомарно «забираем» код, чтобы сессию получил только один запрос
-    $taken = q("UPDATE login_codes SET status = 'used' WHERE code = ? AND status = 'confirmed'", [$row['code']])->rowCount();
-    if (!$taken) return [200, ['status' => 'expired']];
-    $user = one('SELECT * FROM users WHERE id = ?', [$row['user_id']]);
+function startSession(int $uid): array {
     $tok = bin2hex(random_bytes(32));
-    $days = max(1, (int)env('SESSION_DAYS', '60'));
-    q('INSERT INTO sessions (token_hash, user_id, expires_at) VALUES (?,?,?)', [hashToken($tok), $user['id'], time() + $days * 86400]);
-    return [200, ['status' => 'ok', 'user' => userView($user)], ['value' => $tok, 'expires' => time() + $days * 86400]];
+    $days = max(1, (int)env('SESSION_DAYS', '365'));
+    $exp = time() + $days * 86400;
+    q('INSERT INTO sessions (token_hash, user_id, expires_at) VALUES (?,?,?)', [hashToken($tok), $uid, $exp]);
+    return ['value' => $tok, 'expires' => $exp];
 }
 
-function webhook(array $req): array {
-    $secret = env('MAX_WEBHOOK_SECRET');
-    if ($secret === '') fail(503, 'webhook_not_configured');
-    if (!hash_equals($secret, (string)($req['secretHeader'] ?? ''))) fail(401, 'bad_secret');
-    $u = $req['body'] ?? [];
-    $type = $u['update_type'] ?? '';
-    $maxId = null; $text = '';
-    if ($type === 'bot_started') {
-        $maxId = $u['user']['user_id'] ?? null;
-        $text = (string)($u['payload'] ?? '');
-    } elseif ($type === 'message_created') {
-        $maxId = $u['message']['sender']['user_id'] ?? null;
-        $text = (string)($u['message']['body']['text'] ?? '');
-    } else {
-        return [200, ['ok' => true]];
-    }
-    if (!is_int($maxId) || $maxId <= 0) return [200, ['ok' => true]];
-
-    $text = mb_strtoupper(trim($text));
-    if (!preg_match('/\b([' . CODE_ALPHABET . ']{8})\b/u', $text, $m)) {
-        maxSend($maxId, 'Привет! Это бот школьной игры. Чтобы войти, открой игру, нажми «Войти через MAX» и отправь мне код из игры.');
-        return [200, ['ok' => true]];
-    }
-    $row = one("SELECT * FROM login_codes WHERE code = ? AND status = 'pending' AND expires_at > ?", [$m[1], time()]);
-    if (!$row) {
-        maxSend($maxId, 'Код не найден или устарел. Вернись в игру и нажми «Войти через MAX» ещё раз.');
-        return [200, ['ok' => true]];
-    }
+/** Новый «неопознанный» игрок: случайный аватар, без ника. Возвращает пользователя, код (виден один раз) и сессию. */
+function authGuest(array $req): array {
+    if (!rateLimit('guest:' . ipKey($req), GUEST_PER_DAY, 86400)) fail(429, 'too_many_requests');
+    q('DELETE FROM rate_limits WHERE win_start < ?', [time() - 2 * 86400]);
+    q('DELETE FROM sessions WHERE expires_at < ?', [time()]);
     $now = time();
-    insertIgnore('users', ['max_user_id' => $maxId, 'avatar' => AVATARS[array_rand(AVATARS)], 'created_at' => $now, 'last_seen' => $now]);
-    $user = one('SELECT id FROM users WHERE max_user_id = ?', [$maxId]);
-    q("UPDATE login_codes SET status = 'confirmed', user_id = ? WHERE code = ? AND status = 'pending'", [$user['id'], $row['code']]);
-    maxSend($maxId, 'Готово, вход подтверждён! Возвращайся в игру.');
-    return [200, ['ok' => true]];
+    $code = newRecoveryCode();
+    q('INSERT INTO users (nick, nick_key, avatar, recovery_hash, created_at, last_seen) VALUES (NULL, NULL, ?, ?, ?, ?)',
+        [AVATARS[array_rand(AVATARS)], hashToken((string)normalizeCode($code)), $now, $now]);
+    $uid = (int)db()->lastInsertId();
+    $user = one('SELECT * FROM users WHERE id = ?', [$uid]);
+    return [200, ['user' => userView($user), 'recoveryCode' => $code], startSession($uid)];
+}
+
+/** Вход по коду восстановления (другое устройство, потеря cookie) */
+function authRecover(array $req): array {
+    if (!rateLimit('recover:' . ipKey($req), 10, 600)) fail(429, 'too_many_requests');
+    $code = normalizeCode($req['body']['code'] ?? null);
+    if ($code === null) fail(400, 'bad_code');
+    $user = one('SELECT * FROM users WHERE recovery_hash = ?', [hashToken($code)]);
+    if (!$user) fail(404, 'bad_code');
+    return [200, ['user' => userView($user)], startSession((int)$user['id'])];
+}
+
+/** Новый код вместо старого (старый перестаёт работать) */
+function newCode(array $req): array {
+    $user = requireUser($req);
+    $code = newRecoveryCode();
+    q('UPDATE users SET recovery_hash = ? WHERE id = ?', [hashToken((string)normalizeCode($code)), $user['id']]);
+    return [200, ['recoveryCode' => $code]];
 }
 
 function health(array $req): array {
-    return [200, ['ok' => true, 'db' => true, 'login' => maxConfigured()]];
+    return [200, ['ok' => true, 'db' => true]];
 }
 
 function me(array $req): array { return [200, ['user' => userView(requireUser($req))]]; }
@@ -150,14 +110,21 @@ function logout(array $req): array {
 function profile(array $req): array {
     $user = requireUser($req);
     $b = $req['body'] ?? [];
-    $nick = cleanNick($b['nick'] ?? null);
-    if ($nick === null) fail(400, 'bad_nick');
-    $avatar = $b['avatar'] ?? $user['avatar'];
-    if (!in_array($avatar, AVATARS, true)) fail(400, 'bad_avatar');
-    $taken = one('SELECT id FROM users WHERE nick_key = ? AND id <> ?', [mb_strtolower($nick), $user['id']]);
-    if ($taken) fail(409, 'nick_taken');
+    $nick = $user['nick']; $nickKey = $user['nick_key']; $avatar = $user['avatar'];
+    if (array_key_exists('nick', $b) && $b['nick'] !== null && $b['nick'] !== '') {
+        $n = cleanNick($b['nick']);
+        if ($n === null) fail(400, 'bad_nick');
+        if (nickNotAllowed($n)) fail(422, 'nick_not_allowed');
+        $taken = one('SELECT id FROM users WHERE nick_key = ? AND id <> ?', [mb_strtolower($n), $user['id']]);
+        if ($taken) fail(409, 'nick_taken');
+        $nick = $n; $nickKey = mb_strtolower($n);
+    }
+    if (isset($b['avatar'])) {
+        if (!in_array($b['avatar'], AVATARS, true)) fail(400, 'bad_avatar');
+        $avatar = $b['avatar'];
+    }
     try {
-        q('UPDATE users SET nick = ?, nick_key = ?, avatar = ? WHERE id = ?', [$nick, mb_strtolower($nick), $avatar, $user['id']]);
+        q('UPDATE users SET nick = ?, nick_key = ?, avatar = ? WHERE id = ?', [$nick, $nickKey, $avatar, $user['id']]);
     } catch (\PDOException $e) {
         fail(409, 'nick_taken');
     }
@@ -219,7 +186,7 @@ function leaderboard(array $req): array {
     $period = ($req['query']['period'] ?? 'all') === 'week' ? 'week' : 'all';
     $subject = $req['query']['subject'] ?? 'all';
     if ($subject !== 'all' && !isset(SUBJECT_TOPICS[$subject])) fail(400, 'bad_subject');
-    $where = ['u.nick IS NOT NULL']; $args = [];
+    $where = ['1 = 1']; $args = [];
     if ($period === 'week') { $where[] = 'r.played_at >= ?'; $args[] = weekStart(); }
     if ($subject !== 'all') { $where[] = 'r.subject = ?'; $args[] = $subject; }
     $w = implode(' AND ', $where);
@@ -229,18 +196,18 @@ function leaderboard(array $req): array {
     $me = sessionUser($req);
     $list = []; $mine = null;
     foreach ($rows as $i => $r) {
-        $e = ['rank' => $i + 1, 'nick' => $r['nick'], 'avatar' => $r['avatar'], 'points' => (int)$r['pts'], 'matches' => (int)$r['n'], 'wins' => (int)$r['wins']];
+        $e = ['rank' => $i + 1, 'name' => displayName($r), 'anon' => $r['nick'] === null, 'avatar' => $r['avatar'], 'points' => (int)$r['pts'], 'matches' => (int)$r['n'], 'wins' => (int)$r['wins']];
         if ($me && (int)$r['id'] === (int)$me['id']) { $e['me'] = true; $mine = $e; }
         $list[] = $e;
     }
-    if ($me && !$mine && $me['nick'] !== null) {
+    if ($me && !$mine) {
         $own = one("SELECT SUM(r.score) pts, COUNT(*) n, SUM(CASE WHEN r.outcome = 'win' THEN 1 ELSE 0 END) wins FROM results r WHERE r.user_id = ?" .
             ($period === 'week' ? ' AND r.played_at >= ?' : '') . ($subject !== 'all' ? ' AND r.subject = ?' : ''),
             array_merge([$me['id']], $args));
         if ($own && (int)$own['n'] > 0) {
             $above = one("SELECT COUNT(*) c FROM (SELECT r.user_id FROM results r JOIN users u ON u.id = r.user_id WHERE $w GROUP BY r.user_id HAVING SUM(r.score) > ?) t",
                 array_merge($args, [(int)$own['pts']]));
-            $mine = ['rank' => (int)$above['c'] + 1, 'nick' => $me['nick'], 'avatar' => $me['avatar'], 'points' => (int)$own['pts'],
+            $mine = ['rank' => (int)$above['c'] + 1, 'name' => displayName($me), 'anon' => $me['nick'] === null, 'avatar' => $me['avatar'], 'points' => (int)$own['pts'],
                 'matches' => (int)$own['n'], 'wins' => (int)$own['wins'], 'me' => true];
         }
     }
@@ -251,10 +218,10 @@ function leaderboard(array $req): array {
 function routes(): array {
     return [
         'GET /health' => 'S2G\health',
-        'GET /config' => fn() => [200, ['login' => maxConfigured(), 'avatars' => AVATARS]],
-        'POST /auth/start' => 'S2G\authStart',
-        'POST /auth/poll' => 'S2G\authPoll',
-        'POST /max/webhook' => 'S2G\webhook',
+        'GET /config' => fn() => [200, ['accounts' => true, 'avatars' => AVATARS]],
+        'POST /auth/guest' => 'S2G\authGuest',
+        'POST /auth/recover' => 'S2G\authRecover',
+        'POST /auth/newcode' => 'S2G\newCode',
         'GET /me' => 'S2G\me',
         'POST /logout' => 'S2G\logout',
         'POST /profile' => 'S2G\profile',
@@ -270,7 +237,7 @@ function dispatch(array $req): array {
     if (!$h) return [404, ['error' => 'not_found']];
     try {
         // JSON-Content-Type у POST заставляет браузер слать preflight на чужих сайтах: простая защита от CSRF
-        if ($req['method'] === 'POST' && $req['route'] !== '/max/webhook' && empty($req['jsonType'])) fail(415, 'json_required');
+        if ($req['method'] === 'POST' && empty($req['jsonType'])) fail(415, 'json_required');
         return $h($req);
     } catch (HttpError $e) {
         return [$e->status, ['error' => $e->getMessage()] + $e->extra];
@@ -299,7 +266,6 @@ function run(): void {
     $req = [
         'method' => $_SERVER['REQUEST_METHOD'] ?? 'GET', 'route' => $route, 'query' => $_GET, 'body' => $body,
         'cookie' => $_COOKIE[COOKIE] ?? '', 'ip' => $_SERVER['REMOTE_ADDR'] ?? '',
-        'secretHeader' => $_SERVER['HTTP_X_MAX_BOT_API_SECRET'] ?? '',
         'jsonType' => str_contains(strtolower($_SERVER['CONTENT_TYPE'] ?? ''), 'application/json'),
     ];
     $err = prepare();

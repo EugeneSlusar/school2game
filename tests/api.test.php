@@ -2,54 +2,34 @@
 // php tests/api.test.php — проверка бэкенда на SQLite в памяти, без сети
 declare(strict_types=1);
 putenv('DB_DRIVER=sqlite'); putenv('DB_PATH=:memory:'); putenv('S2G_ENV_FILE=/nonexistent');
-putenv('MAX_WEBHOOK_SECRET=test-secret-123'); putenv('MAX_BOT_TOKEN=tok'); putenv('MAX_BOT_LINK=https://max.ru/testbot');
 require __DIR__ . '/../server/routes.php';
 use function S2G\{dispatch, migrate, q, one};
 
 $fail = 0; $n = 0;
 function ok(bool $c, string $name): void { global $fail, $n; $n++; if (!$c) { $fail++; echo "ПРОВАЛ: $name\n"; } }
-$sent = [];
-$GLOBALS['s2g_http'] = function ($url, $body, $h) use (&$sent) { $sent[] = [$url, $body, $h]; return [200, '{}']; };
+
+// --- миграции
 $first = migrate(); $again = migrate();
-ok($first === ['001_init'] && $again === [], 'миграции: первый запуск применяет, повторный ничего');
-// новая миграция подхватывается сама, старые не повторяются
+ok($first === ['001_init', '002_accounts'] && $again === [], 'миграции: первый запуск применяет обе, повторный ничего');
 $tmp = sys_get_temp_dir() . '/s2g-mig-' . getmypid(); mkdir($tmp);
-copy(__DIR__ . '/../server/migrations/001_init.php', "$tmp/001_init.php");
-file_put_contents("$tmp/002_extra.php", '<?php return function ($db, $d) { $db->exec("CREATE TABLE IF NOT EXISTS extra_t (id INT)"); };');
-ok(migrate($tmp) === ['002_extra'], 'новый файл миграции применён сразу');
+foreach (['001_init', '002_accounts'] as $f) copy(__DIR__ . "/../server/migrations/$f.php", "$tmp/$f.php");
+file_put_contents("$tmp/003_extra.php", '<?php return function ($db, $d) { $db->exec("CREATE TABLE IF NOT EXISTS extra_t (id INT)"); };');
+ok(migrate($tmp) === ['003_extra'], 'новый файл миграции применён сразу');
 ok(migrate($tmp) === [], 'без новых файлов миграция ничего не делает');
-file_put_contents("$tmp/003_bad.php", '<?php return function ($db, $d) { $db->exec("NOT SQL"); };');
+file_put_contents("$tmp/004_bad.php", '<?php return function ($db, $d) { $db->exec("NOT SQL"); };');
 $threw = false; try { migrate($tmp); } catch (\Throwable $e) { $threw = true; }
-ok($threw && !in_array('003_bad', S2G\appliedMigrations(), true), 'сбойная миграция не помечается применённой');
+ok($threw && !in_array('004_bad', S2G\appliedMigrations(), true), 'сбойная миграция не помечается применённой');
 array_map('unlink', glob("$tmp/*.php")); rmdir($tmp);
 ok(S2G\prepare() === null, 'prepare() проходит');
 
-// --- без настроенного MAX сайт работает
-$saved = [getenv('MAX_BOT_TOKEN'), getenv('MAX_BOT_LINK')];
-putenv('MAX_BOT_TOKEN'); putenv('MAX_BOT_LINK');
-[$st, $r] = dispatch(['method' => 'GET', 'route' => '/config', 'query' => [], 'body' => null, 'cookie' => '', 'ip' => '1', 'secretHeader' => '', 'jsonType' => false]);
-ok($st === 200 && $r['login'] === false && count($r['avatars']) === 24, 'config: вход выключен без MAX, аватары отдаются');
-[$st, $r] = dispatch(['method' => 'POST', 'route' => '/auth/start', 'query' => [], 'body' => [], 'cookie' => '', 'ip' => '1', 'secretHeader' => '', 'jsonType' => true]);
-ok($st === 503 && $r['error'] === 'login_not_configured', 'auth/start без MAX = 503 login_not_configured');
-[$st, $r] = dispatch(['method' => 'GET', 'route' => '/leaderboard', 'query' => [], 'body' => null, 'cookie' => '', 'ip' => '1', 'secretHeader' => '', 'jsonType' => false]);
-ok($st === 200, 'рейтинг читается без MAX');
-putenv('MAX_BOT_TOKEN=' . $saved[0]); putenv('MAX_BOT_LINK=' . $saved[1]);
-
-function call(string $m, string $route, ?array $body = null, string $cookie = '', array $query = [], string $secret = '', bool $json = true): array {
-    return dispatch(['method' => $m, 'route' => $route, 'query' => $query, 'body' => $body, 'cookie' => $cookie, 'ip' => '1.2.3.4', 'secretHeader' => $secret, 'jsonType' => $json]);
+function call(string $m, string $route, ?array $body = null, string $cookie = '', array $query = [], string $ip = '1.2.3.4', bool $json = true): array {
+    return dispatch(['method' => $m, 'route' => $route, 'query' => $query, 'body' => $body, 'cookie' => $cookie, 'ip' => $ip, 'jsonType' => $json]);
 }
-function login(int $maxId): array {
-    global $sent;
-    [, $s] = call('POST', '/auth/start', []);
-    [, $p0] = call('POST', '/auth/poll', ['poll' => $s['poll']]);
-    ok($p0['status'] === 'pending', 'до подтверждения pending');
-    [$st] = call('POST', '/max/webhook', ['update_type' => 'bot_started', 'user' => ['user_id' => $maxId], 'payload' => $s['code']], '', [], 'test-secret-123', false);
-    ok($st === 200, 'вебхук принят');
-    [, $p, $ck] = call('POST', '/auth/poll', ['poll' => $s['poll']]) + [2 => null];
-    ok($p['status'] === 'ok' && $ck && strlen($ck['value']) === 64, 'poll выдал сессию');
-    [, $p2] = call('POST', '/auth/poll', ['poll' => $s['poll']]);
-    ok($p2['status'] === 'expired', 'код одноразовый');
-    return [$p['user'], $ck['value']];
+/** Новый анонимный игрок: [пользователь, cookie, код восстановления] */
+function guest(string $ip = '1.2.3.4'): array {
+    [$st, $r, $ck] = call('POST', '/auth/guest', [], '', [], $ip) + [2 => null];
+    ok($st === 200 && $ck && strlen($ck['value']) === 64, 'гость создан');
+    return [$r['user'], $ck['value'], $r['recoveryCode']];
 }
 function match_(string $id, array $o = []): array {
     return $o + ['id' => $id, 't' => (time() - 60) * 1000, 'subject' => 'math', 'topic' => 'all', 'level' => 'medium', 'sport' => 'football', 'format' => '1x1',
@@ -57,34 +37,48 @@ function match_(string $id, array $o = []): array {
 }
 
 // --- разбор пути
-foreach (['/school2game/api/health' => '/health', '/school2game/public_html/api/auth/start' => '/auth/start', '/api/leaderboard' => '/leaderboard',
-          '/school2game/public_html/api/' => '/', '/school2game/public_html/api/index.php' => '/', '/api/max/webhook/' => '/max/webhook'] as $path => $route) {
+foreach (['/school2game/api/health' => '/health', '/school2game/public_html/api/auth/guest' => '/auth/guest', '/api/leaderboard' => '/leaderboard',
+          '/school2game/public_html/api/' => '/', '/school2game/public_html/api/index.php' => '/', '/api/profile/' => '/profile'] as $path => $route) {
     ok(S2G\routeFromPath($path) === $route, "путь $path → $route (получили " . S2G\routeFromPath($path) . ')');
 }
 
-// --- безопасность входа
-[$st] = call('POST', '/max/webhook', ['update_type' => 'bot_started'], '', [], 'wrong', false); ok($st === 401, 'вебхук с чужим секретом отклонён');
-[$st] = call('POST', '/auth/start', null, '', [], '', false); ok($st === 415, 'POST без JSON отклонён (CSRF)');
+// --- анонимные аккаунты
+[$st] = call('POST', '/auth/guest', null, '', [], '1.2.3.4', false); ok($st === 415, 'POST без JSON отклонён (CSRF)');
 [$st] = call('GET', '/me'); ok($st === 401, '/me без входа = 401');
-[$st, $s] = call('POST', '/auth/start', []); ok($st === 200 && $s['link'] === 'https://max.ru/testbot?start=' . $s['code'] && strlen($s['code']) === 8, 'start даёт код и ссылку');
-// код текстом, в нижнем регистре и с лишним
-[, $s2] = call('POST', '/auth/start', []);
-call('POST', '/max/webhook', ['update_type' => 'message_created', 'message' => ['sender' => ['user_id' => 555], 'body' => ['text' => ' мой код: ' . strtolower($s2['code'])]]], '', [], 'test-secret-123', false);
-[, $pp] = call('POST', '/auth/poll', ['poll' => $s2['poll']]);
-ok($pp['status'] === 'ok' || $pp['status'] === 'pending', 'код текстом обработан');
-q("UPDATE login_codes SET expires_at = 1 WHERE code = ?", [$s['code']]);
-call('POST', '/max/webhook', ['update_type' => 'bot_started', 'user' => ['user_id' => 9], 'payload' => $s['code']], '', [], 'test-secret-123', false);
-[, $pe] = call('POST', '/auth/poll', ['poll' => $s['poll']]); ok($pe['status'] === 'expired', 'просроченный код не работает');
+[$st, $r] = call('GET', '/config'); ok($st === 200 && $r['accounts'] === true && count($r['avatars']) === 24 && !isset($r['login']), 'config: аккаунты есть, без упоминаний сторонних сервисов');
+[$u1, $c1, $code1] = guest();
+ok($u1['nick'] === null && $u1['needsNick'] === true && str_starts_with($u1['name'], 'Неопознанный №') && in_array($u1['avatar'], S2G\AVATARS, true), 'новый игрок: неопознанный со случайным аватаром');
+ok((bool)preg_match('/^[A-Z2-9]{4}-[A-Z2-9]{4}-[A-Z2-9]{4}$/', $code1), 'код восстановления нужного вида');
+[$st, $r] = call('GET', '/me', null, $c1); ok($st === 200 && $r['user']['id'] === $u1['id'], '/me по cookie');
+$h = one('SELECT recovery_hash FROM users WHERE id = ?', [$u1['id']]); ok($h['recovery_hash'] !== $code1 && strlen($h['recovery_hash']) === 64, 'код хранится только хэшем');
 
-// --- вход, ник, профиль
-[$u1, $c1] = login(1001);
-ok($u1['needsNick'] === true, 'новому нужен ник');
+[$st, $r, $ck] = call('POST', '/auth/recover', ['code' => strtolower(str_replace('-', ' ', $code1))]) + [2 => null];
+ok($st === 200 && $r['user']['id'] === $u1['id'] && $ck && $ck['value'] !== $c1, 'вход по коду (регистр и разделители не важны)');
+[$st, $r] = call('POST', '/auth/recover', ['code' => 'AAAA-AAAA-AAAA']); ok($st === 404 && $r['error'] === 'bad_code', 'неверный код = 404');
+[$st] = call('POST', '/auth/recover', ['code' => 'коротко']); ok($st === 400, 'код неверного вида = 400');
+$limited = false; for ($i = 0; $i < 12; $i++) { [$st] = call('POST', '/auth/recover', ['code' => 'BBBB-BBBB-BBBB'], '', [], '9.9.9.9'); if ($st === 429) $limited = true; }
+ok($limited, 'перебор кодов ограничен');
+[$st, $r] = call('POST', '/auth/newcode', [], $c1); $code1b = $r['recoveryCode'] ?? '';
+ok($st === 200 && $code1b !== $code1 && $code1b !== '', 'новый код выдан');
+[$st] = call('POST', '/auth/recover', ['code' => $code1], '', [], '5.5.5.5'); ok($st === 404, 'старый код больше не работает');
+[$st] = call('POST', '/auth/recover', ['code' => $code1b], '', [], '5.5.5.5'); ok($st === 200, 'новый код работает');
+[$st] = call('POST', '/auth/newcode', []); ok($st === 401, 'newcode без входа = 401');
+$blocked = false; for ($i = 0; $i < S2G\GUEST_PER_DAY + 2; $i++) { [$st] = call('POST', '/auth/guest', [], '', [], '7.7.7.7'); if ($st === 429) { $blocked = true; break; } }
+ok($blocked, 'создание аккаунтов с одного адреса ограничено');
+
+// --- профиль: аватар без ника, ник, фильтр, смена
+[$st, $r] = call('POST', '/profile', ['avatar' => '🐸'], $c1); ok($st === 200 && $r['user']['avatar'] === '🐸' && $r['user']['nick'] === null, 'аватар меняется без ника');
+[$st] = call('POST', '/profile', ['avatar' => 'x'], $c1); ok($st === 400, 'аватар не из списка отклонён');
 [$st] = call('POST', '/profile', ['nick' => '<b>x</b>'], $c1); ok($st === 400, 'ник с тегами отклонён');
-[$st] = call('POST', '/profile', ['nick' => 'Ветер', 'avatar' => '⚽'], $c1); ok($st === 200, 'ник сохранён');
-[$u2, $c2] = login(1002);
-[$st, $r] = call('POST', '/profile', ['nick' => 'ветер'], $c2); ok($st === 409, 'ник занят без учёта регистра');
-call('POST', '/profile', ['nick' => 'Молния', 'avatar' => '🔥'], $c2);
-[$st, $r] = call('GET', '/me', null, $c1); ok($st === 200 && $r['user']['nick'] === 'Ветер', '/me работает');
+[$st, $r] = call('POST', '/profile', ['nick' => 'х у й'], $c1); ok($st === 422 && $r['error'] === 'nick_not_allowed', 'мат в нике отклонён');
+[$st] = call('POST', '/profile', ['nick' => 'Админ'], $c1); ok($st === 422, 'служебное имя отклонено');
+[$st, $r] = call('POST', '/profile', ['nick' => 'Ветер', 'avatar' => '⚽'], $c1); ok($st === 200 && $r['user']['nick'] === 'Ветер' && $r['user']['name'] === 'Ветер' && !$r['user']['needsNick'], 'ник сохранён');
+[$u2, $c2] = guest('1.2.3.5');
+[$st, $r] = call('POST', '/profile', ['nick' => 'ветер'], $c2); ok($st === 409 && $r['error'] === 'nick_taken', 'ник занят без учёта регистра');
+[$st] = call('POST', '/profile', ['nick' => 'Молния', 'avatar' => '🔥'], $c2); ok($st === 200, 'второй игрок получил ник');
+[$st, $r] = call('POST', '/profile', ['nick' => 'Ветрище'], $c1); ok($st === 200 && $r['user']['nick'] === 'Ветрище', 'ник можно сменить');
+call('POST', '/profile', ['nick' => 'Ветер'], $c1);
+[$st, $r] = call('GET', '/me', null, $c1); ok($st === 200 && $r['user']['nick'] === 'Ветер', '/me показывает ник');
 
 // --- проверка матчей
 $now = time();
@@ -122,21 +116,23 @@ ok($r['rejected'][0]['reason'] === 'id_taken', 'чужой id матча не п
 [$st] = call('POST', '/sync', ['matches' => []], ''); ok($st === 401, 'sync без входа = 401');
 $t = one('SELECT total FROM topic_stats WHERE user_id = ? AND topic = ?', [$u1['id'], 'mul']); ok((int)$t['total'] === 40, 'меньшая статистика не затирает большую');
 
-// --- рейтинг
+// --- рейтинг: неопознанные игроки тоже в таблице
 call('POST', '/sync', ['matches' => [match_('v1', ['you' => 30, 'foe' => 5, 'correct' => 15, 'byTopic' => ['mul' => ['n' => 18, 'ok' => 15]]])]], $c2);
+[$u3, $c3] = guest('1.2.3.6');
+call('POST', '/sync', ['matches' => [match_('v2', ['you' => 21, 'correct' => 11, 'byTopic' => ['mul' => ['n' => 14, 'ok' => 11]]])]], $c3);
 [, $lb] = call('GET', '/leaderboard', null, $c1);
-ok(count($lb['top']) === 2 && $lb['top'][0]['nick'] === 'Ветер' && $lb['top'][0]['points'] === 40 && $lb['top'][1]['points'] === 30, 'рейтинг построен');
-ok($lb['top'][0]['points'] >= $lb['top'][1]['points'], 'рейтинг отсортирован');
-ok($lb['me']['nick'] === 'Ветер', 'свой ряд в рейтинге');
-[, $lb] = call('GET', '/leaderboard', null, '', ['subject' => 'rus']); ok(count($lb['top']) === 1 && $lb['top'][0]['nick'] === 'Ветер', 'фильтр по предмету');
-[, $lb] = call('GET', '/leaderboard', null, '', ['period' => 'week']); ok(count($lb['top']) === 2, 'неделя');
-ok(!array_key_exists('max_user_id', $lb['top'][0]), 'в рейтинге нет ID из MAX');
+ok(count($lb['top']) === 3 && $lb['top'][0]['name'] === 'Ветер' && $lb['top'][0]['points'] === 40 && $lb['top'][1]['points'] === 30, 'рейтинг построен');
+ok($lb['top'][2]['anon'] === true && $lb['top'][2]['name'] === 'Неопознанный №' . $u3['id'] && $lb['top'][2]['avatar'] === $u3['avatar'], 'неопознанный игрок в рейтинге с аватаром');
+ok($lb['me']['name'] === 'Ветер' && $lb['me']['rank'] === 1, 'свой ряд в рейтинге');
+[, $lb3] = call('GET', '/leaderboard', null, $c3); ok($lb3['me']['anon'] === true && $lb3['me']['rank'] === 3, 'неопознанный видит своё место');
+[, $lb] = call('GET', '/leaderboard', null, '', ['subject' => 'rus']); ok(count($lb['top']) === 1 && $lb['top'][0]['name'] === 'Ветер', 'фильтр по предмету');
+[, $lb] = call('GET', '/leaderboard', null, '', ['period' => 'week']); ok(count($lb['top']) === 3, 'неделя');
+ok(!array_key_exists('id', $lb['top'][0]) && !array_key_exists('recovery_hash', $lb['top'][0]), 'в рейтинге нет служебных полей');
 [$st] = call('GET', '/leaderboard', null, '', ['subject' => 'xx']); ok($st === 400, 'плохой предмет');
 
 // --- выход
-[, , $ck] = call('POST', '/logout', [], $c1) + [2 => null];
+call('POST', '/logout', [], $c1);
 [$st] = call('GET', '/me', null, $c1); ok($st === 401, 'после выхода сессии нет');
-ok(count($sent) > 0 && str_contains($sent[0][0], '/messages?user_id=') && $sent[0][2][0] === 'Authorization: tok', 'ответ бота идёт с токеном в Authorization');
 
 echo $fail ? "\nПровалено: $fail из $n\n" : "Бэкенд: все $n проверок пройдены\n";
 exit($fail ? 1 : 0);
