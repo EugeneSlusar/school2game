@@ -28,7 +28,7 @@ ok(S2G\prepare() === null, 'prepare() проходит');
 $saved = [getenv('MAX_BOT_TOKEN'), getenv('MAX_BOT_LINK')];
 putenv('MAX_BOT_TOKEN'); putenv('MAX_BOT_LINK');
 [$st, $r] = dispatch(['method' => 'GET', 'route' => '/config', 'query' => [], 'body' => null, 'cookie' => '', 'ip' => '1', 'secretHeader' => '', 'jsonType' => false]);
-ok($st === 200 && $r['login'] === false, 'config: вход выключен без MAX');
+ok($st === 200 && $r['login'] === false && count($r['avatars']) === 24, 'config: вход выключен без MAX, аватары отдаются');
 [$st, $r] = dispatch(['method' => 'POST', 'route' => '/auth/start', 'query' => [], 'body' => [], 'cookie' => '', 'ip' => '1', 'secretHeader' => '', 'jsonType' => true]);
 ok($st === 503 && $r['error'] === 'login_not_configured', 'auth/start без MAX = 503 login_not_configured');
 [$st, $r] = dispatch(['method' => 'GET', 'route' => '/leaderboard', 'query' => [], 'body' => null, 'cookie' => '', 'ip' => '1', 'secretHeader' => '', 'jsonType' => false]);
