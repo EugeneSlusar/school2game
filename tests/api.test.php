@@ -56,6 +56,12 @@ function match_(string $id, array $o = []): array {
         'you' => 20, 'foe' => 10, 'outcome' => 'win', 'correct' => 12, 'wrong' => 2, 'timeouts' => 1, 'sec' => 120, 'byTopic' => ['mul' => ['n' => 15, 'ok' => 12]]];
 }
 
+// --- разбор пути
+foreach (['/school2game/api/health' => '/health', '/school2game/www/api/auth/start' => '/auth/start', '/api/leaderboard' => '/leaderboard',
+          '/school2game/www/api/' => '/', '/school2game/www/api/index.php' => '/', '/api/max/webhook/' => '/max/webhook'] as $path => $route) {
+    ok(S2G\routeFromPath($path) === $route, "путь $path → $route (получили " . S2G\routeFromPath($path) . ')');
+}
+
 // --- безопасность входа
 [$st] = call('POST', '/max/webhook', ['update_type' => 'bot_started'], '', [], 'wrong', false); ok($st === 401, 'вебхук с чужим секретом отклонён');
 [$st] = call('POST', '/auth/start', null, '', [], '', false); ok($st === 415, 'POST без JSON отклонён (CSRF)');

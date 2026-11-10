@@ -280,12 +280,16 @@ function dispatch(array $req): array {
     }
 }
 
-function run(): void {
-    $path = parse_url($_SERVER['REQUEST_URI'] ?? '/', PHP_URL_PATH) ?: '/';
-    $base = rtrim(dirname($_SERVER['SCRIPT_NAME'] ?? ''), '/');
-    $route = ($base !== '' && str_starts_with($path, $base)) ? substr($path, strlen($base)) : $path;
+/** Маршрут API из пути: работает и для /api/..., и для /www/api/..., и при подпапке сайта */
+function routeFromPath(string $path): string {
+    if (preg_match('#/api(/[^?]*)?$#', $path, $m)) $route = $m[1] ?? '/';
+    else $route = $path;
     $route = '/' . trim($route, '/');
-    if ($route === '/index.php') $route = '/';
+    return $route === '/index.php' ? '/' : $route;
+}
+
+function run(): void {
+    $route = routeFromPath(parse_url($_SERVER['REQUEST_URI'] ?? '/', PHP_URL_PATH) ?: '/');
     $body = null;
     if (($_SERVER['REQUEST_METHOD'] ?? '') === 'POST') {
         $raw = file_get_contents('php://input', false, null, 0, 2000000);
