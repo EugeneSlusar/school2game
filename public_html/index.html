@@ -331,7 +331,10 @@ a.btn{display:flex;align-items:center;justify-content:center;box-sizing:border-b
 .err{margin:0;min-height:1.2em;color:var(--bad);font-size:17px}
 .okmsg{color:var(--good)}
 .stack{display:grid;gap:12px}
-.topbar{display:flex;align-items:center;min-height:48px;padding-top:4px}
+.topbar{display:flex;align-items:center;justify-content:space-between;gap:10px;min-height:48px;padding-top:4px}
+.topbar .logo{flex:1 1 auto;min-width:0;margin:0;font:400 clamp(20px,6.4vw,30px)/1 var(--font-display);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.topbar .avatar-btn{flex:0 1 auto;max-width:58%}
+.ver{margin:14px 0 0;text-align:center;font-size:14px;color:var(--ink-soft)}
 .avatar-btn{position:relative;display:flex;align-items:center;gap:10px;max-width:100%;padding:4px 14px 4px 4px;color:var(--ink);background:var(--card);border:2px solid var(--ink);border-radius:999px;box-shadow:0 3px 0 var(--ink);text-align:left}
 .avatar-btn:active{transform:translateY(3px);box-shadow:0 0 0 var(--ink)}
 .avatar-btn .avb{flex:none;width:40px;height:40px;display:flex;align-items:center;justify-content:center;font-size:24px;line-height:1;background:var(--you-soft);border-radius:50%}
@@ -355,6 +358,7 @@ a.btn{display:flex;align-items:center;justify-content:center;box-sizing:border-b
   <!-- ===== Меню ===== -->
   <section class="screen" id="screen-menu">
     <div class="topbar">
+      <h1 class="logo">school2game</h1>
       <button type="button" class="avatar-btn" id="btn-avatar" aria-label="Мой профиль">
         <span class="avb" id="avb-av" aria-hidden="true">🙂</span>
         <span class="avt"><b id="avb-name">Гость</b><small id="avb-hint"></small></span>
@@ -362,7 +366,6 @@ a.btn{display:flex;align-items:center;justify-content:center;box-sizing:border-b
       </button>
     </div>
     <header class="brand">
-      <h1>school2game</h1>
       <svg viewBox="0 0 150 10" aria-hidden="true"><path class="wave" d="M3 5 Q12 -1 21 5 T39 5 T57 5 T75 5 T93 5 T111 5 T129 5 T147 5"/></svg>
       <p>Учись с игровым вайбом</p>
     </header>
@@ -474,6 +477,7 @@ a.btn{display:flex;align-items:center;justify-content:center;box-sizing:border-b
       <p class="summary" id="summary"></p>
       <button type="button" class="cta" id="btn-start">В игру</button>
     </div>
+    <p class="ver">Версия 1.4.1 · 10.11 15:59</p>
   </section>
 
   <!-- ===== Матч ===== -->
@@ -663,6 +667,7 @@ a.btn{display:flex;align-items:center;justify-content:center;box-sizing:border-b
     </div>
     <div class="actions">
       <button type="button" class="btn" id="btn-profile-back">В меню</button>
+      <p class="ver">Версия 1.4.1 · 10.11 15:59</p>
     </div>
   </section>
 
