@@ -323,17 +323,18 @@ a.btn{display:flex;align-items:center;justify-content:center;box-sizing:border-b
 .err{margin:0;min-height:1.2em;color:var(--bad);font-size:17px}
 .okmsg{color:var(--good)}
 .stack{display:grid;gap:12px}
-.topbar{display:flex;align-items:center;justify-content:space-between;gap:10px;min-height:48px;padding-top:4px}
-.topbar .logo{flex:1 1 auto;min-width:0;margin:0;font:400 clamp(20px,6.4vw,30px)/1 var(--font-display);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-.topbar .avatar-btn{flex:0 1 auto;max-width:58%}
+.topbar{display:flex;align-items:flex-start;justify-content:space-between;gap:12px;padding-top:4px}
+.topbar .brand{flex:1 1 auto;min-width:0}
+.topbar .brand h1{margin:2px 0 2px;font:400 clamp(20px,6.8vw,38px)/1 var(--font-display);white-space:nowrap}
+.topbar .brand p{font-size:clamp(15px,4.6vw,19px);white-space:nowrap}
 .ver{margin:14px 0 0;text-align:center;font-size:14px;color:var(--ink-soft)}
-.avatar-btn{position:relative;display:flex;align-items:center;gap:10px;max-width:100%;padding:4px 14px 4px 4px;color:var(--ink);background:var(--card);border:2px solid var(--ink);border-radius:999px;box-shadow:0 3px 0 var(--ink);text-align:left}
-.avatar-btn:active{transform:translateY(3px);box-shadow:0 0 0 var(--ink)}
-.avatar-btn .avb{flex:none;width:40px;height:40px;display:flex;align-items:center;justify-content:center;font-size:24px;line-height:1;background:var(--you-soft);border-radius:50%}
-.avatar-btn .avt{display:grid;min-width:0}
-.avatar-btn b{font:400 16px/1.1 var(--font-display);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-.avatar-btn small{font-size:14px;line-height:1.1;color:var(--ink-soft);white-space:nowrap}
-.avatar-btn .dot{position:absolute;top:-3px;right:-3px;width:14px;height:14px;background:var(--bad);border:2px solid var(--paper);border-radius:50%;animation:pulse 1.6s ease-in-out infinite}
+.avatar-btn{position:relative;flex:none;display:grid;grid-template-columns:minmax(0,1fr);justify-items:center;gap:3px;width:76px;padding:0;color:var(--ink);background:none;border:0;text-align:center}
+.avatar-btn .avb{width:56px;height:56px;display:flex;align-items:center;justify-content:center;font-size:32px;line-height:1;background:var(--you-soft);border:2px solid var(--ink);border-radius:50%;box-shadow:0 3px 0 var(--ink)}
+.avatar-btn:active .avb{transform:translateY(3px);box-shadow:0 0 0 var(--ink)}
+.avatar-btn .avt{display:block;max-width:100%}
+.avatar-btn b{display:block;font:400 14px/1.1 var(--font-display);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.avatar-btn small{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0)}
+.avatar-btn .dot{position:absolute;top:-2px;right:8px;width:14px;height:14px;background:var(--bad);border:2px solid var(--paper);border-radius:50%;animation:pulse 1.6s ease-in-out infinite}
 @keyframes pulse{0%,100%{transform:scale(1)}50%{transform:scale(1.35)}}
 @media (prefers-reduced-motion: reduce){.avatar-btn .dot{animation:none}}
 .codebox{display:grid;gap:8px;padding:12px;background:var(--card);border:2px dashed var(--shade);border-radius:14px}
@@ -347,17 +348,17 @@ a.btn{display:flex;align-items:center;justify-content:center;box-sizing:border-b
   <!-- ===== Меню ===== -->
   <section class="screen" id="screen-menu">
     <div class="topbar">
-      <h1 class="logo">school2game</h1>
+      <header class="brand">
+        <h1>school2game</h1>
+        <svg viewBox="0 0 150 10" aria-hidden="true"><path class="wave" d="M3 5 Q12 -1 21 5 T39 5 T57 5 T75 5 T93 5 T111 5 T129 5 T147 5"/></svg>
+        <p>Учись с игровым вайбом</p>
+      </header>
       <button type="button" class="avatar-btn" id="btn-avatar" aria-label="Мой профиль">
         <span class="avb" id="avb-av" aria-hidden="true">🙂</span>
         <span class="avt"><b id="avb-name">Гость</b><small id="avb-hint"></small></span>
         <i class="dot" id="avb-dot" hidden></i>
       </button>
     </div>
-    <header class="brand">
-      <svg viewBox="0 0 150 10" aria-hidden="true"><path class="wave" d="M3 5 Q12 -1 21 5 T39 5 T57 5 T75 5 T93 5 T111 5 T129 5 T147 5"/></svg>
-      <p>Учись с игровым вайбом</p>
-    </header>
 
     <div class="group">
       <h2>Предмет</h2>
@@ -881,7 +882,8 @@ function cleanMatch(m) {
     id: m.id.slice(0, 64), t: +m.t || 0, subject: m.subject, topic: String(m.topic || 'all'), level: LEVELS[m.level] ? m.level : 'medium',
     sport: SPORTS[m.sport] ? m.sport : 'football', format: m.format === '2x2' ? '2x2' : '1x1', you: +m.you || 0, foe: +m.foe || 0,
     outcome: m.outcome === 'win' || m.outcome === 'lose' ? m.outcome : 'draw', correct: +m.correct || 0, wrong: +m.wrong || 0,
-    timeouts: +m.timeouts || 0, sec: +m.sec || 0, byTopic: (m.byTopic && typeof m.byTopic === 'object') ? m.byTopic : {}, sent: !!m.sent
+    timeouts: +m.timeouts || 0, sec: +m.sec || 0, byTopic: (m.byTopic && typeof m.byTopic === 'object') ? m.byTopic : {}, sent: !!m.sent,
+    rej: m.rej ? String(m.rej).slice(0, 24) : ''
   };
 }
 function sanitize(o) {
@@ -1216,7 +1218,16 @@ async function refreshAccount() {
   catch (e) { if (e.status === 401) await ensureAccount(); else acc.err = errText(e); }
   if (!acc.user && !acc.err) acc.err = 'Не удалось создать профиль, попробуй ещё раз';
 }
+/* однократно: матчи, которые сервер раньше отклонил из-за ошибки проверки, отправляем заново (принятые он узнает по id) */
+function resendOnce() {
+  let done = ''; try { done = localStorage.getItem('school2game-resend') || ''; } catch (e) { /* ничего */ }
+  if (done === '2') return;
+  prefs.matches.forEach(m => { m.sent = false; m.rej = ''; });
+  savePrefs();
+  try { localStorage.setItem('school2game-resend', '2'); } catch (e) { /* ничего */ }
+}
 async function initAccount() {
+  resendOnce();
   await refreshAccount();
   renderAvatarBtn();
   if (acc.user) syncSoon();
@@ -1234,10 +1245,11 @@ async function syncNow() {
       const batch = prefs.matches.filter(m => !m.sent).slice(0, 100);
       const r = await api('POST', 'sync', {
         guestId: prefs.guestId, stats: prefs.stats,
-        matches: batch.map(m => { const c = Object.assign({}, m); delete c.sent; return c; })
+        matches: batch.map(m => { const c = Object.assign({}, m); delete c.sent; delete c.rej; return c; })
       });
       const done = new Set([].concat(r.accepted, r.duplicate, r.rejected.map(x => x.id)));
       prefs.matches.forEach(m => { if (done.has(m.id)) m.sent = true; });
+      r.rejected.forEach(x => { const m = prefs.matches.find(y => y.id === x.id); if (m) m.rej = x.reason || 'rejected'; });
       mergeData({ stats: r.stats });
       if (!batch.length || !prefs.matches.some(m => !m.sent)) break;
     }
@@ -1272,8 +1284,9 @@ function renderProfile() {
   ((acc.conf && acc.conf.avatars) || []).forEach(a => {
     const b = h('button', null, a); b.type = 'button'; b.dataset.a = a; b.setAttribute('aria-pressed', String(a === (pfAvatar || u.avatar))); box.appendChild(b);
   });
-  const n = unsentCount();
-  $('#pf-sync').textContent = n ? `Ждут отправки в рейтинг: ${n}.` : 'Все твои матчи уже в рейтинге.';
+  const n = unsentCount(), bad = prefs.matches.filter(m => m.rej);
+  $('#pf-sync').textContent = (n ? `Ждут отправки в рейтинг: ${n}. ` : 'Все принятые матчи уже в рейтинге. ') +
+    (bad.length ? `Сервер не принял: ${bad.length} (${[...new Set(bad.map(m => m.rej))].join(', ')}).` : '');
   const rc = getRecovery();
   $('#pf-rc').textContent = rc || '— — —';
   $('#pf-rc-note').textContent = rc ? 'Запиши или скопируй код. Он нужен, чтобы вернуть профиль на другом телефоне или после очистки браузера.'
