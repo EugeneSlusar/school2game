@@ -10,7 +10,7 @@
 Полные решения и план: `docs/plan.md`. Передача контекста и нюансы: `docs/HANDOFF.md`. Прочитай оба файла перед работой.
 
 ## Текущий приоритет
-Только веб-версия (Android на паузе). Хостинг: Timeweb Optimo (шаред), PHP + MySQL, сайт https://lab.orgbox.net/school2game/. Бэкенд (`server/`, `public_html/api/`) и клиент (экраны «Профиль» и «Рейтинг», вход через MAX, смена ника и аватара, синхронизация матчей) написаны. Блокер: автодеплой не проходит (нет секрета `DEPLOY_SSH_KEY` и скрипта `.deploy/sync_repo_from_git.sh`). Дальше: публикация в RuStore. Подробности: `docs/plan.md`, `docs/HANDOFF.md`.
+Только веб-версия (Android на паузе). Хостинг: Timeweb Optimo (шаред), PHP + MySQL, сайт https://lab.orgbox.net/school2game/. Бэкенд (`server/`, `public_html/api/`) и клиент (экраны «Профиль» и «Рейтинг», вход через MAX, смена ника и аватара, синхронизация матчей) написаны. Автодеплой настроен (GitHub Actions по SSH запускает на сервере `.deploy/sync_repo_from_git.sh --auto`; он не затирает неотслеживаемые файлы, конфликт останавливает деплой). `.env` лежит на сервере в корне, в git его нет. Дальше: публикация в RuStore. Подробности: `docs/plan.md`, `docs/HANDOFF.md`.
 
 ## Структура
 - `docs/artifact-version.html` — ИСТОЧНИК ИСТИНЫ: вся игра в одном файле (HTML, CSS, JS), шрифты через Google Fonts.
