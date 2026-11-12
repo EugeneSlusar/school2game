@@ -453,6 +453,9 @@ a.btn{display:flex;align-items:center;justify-content:center;box-sizing:border-b
       </div>
     </div>
 
+    <div class="row">
+      <button type="button" class="linkbtn" id="btn-duel">Онлайн-дуэль: с живым игроком</button>
+    </div>
     <div class="row two">
       <button type="button" class="linkbtn" id="btn-progress">Мой прогресс</button>
       <button type="button" class="linkbtn" id="btn-rating">Рейтинг</button>
@@ -467,6 +470,7 @@ a.btn{display:flex;align-items:center;justify-content:center;box-sizing:border-b
         <li>Ошибка или конец времени обрывает серию.</li>
         <li>В математике после ошибки кнопки замирают на 1 секунду и можно ответить снова. В русском языке после ошибки показывается верный ответ и идёт следующий вопрос.</li>
         <li>Матч идёт 2 минуты или до 50 очков на игрока.</li>
+        <li>Онлайн-дуэль: два живых игрока получают одни и те же задания и начинают одновременно. Играют по тем же правилам, но без паузы. Побеждает тот, кто первым набрал 50 очков, а если время вышло, у кого очков больше. Дуэли идут в отдельный рейтинг онлайн-игр.</li>
         <li>Режим «Слабые места» чаще даёт темы, где ты ошибаешься, и повторяет твои прошлые ошибки.</li>
         <li>На сложном уровне по математике бывают примеры вида 3 × ? = 24 и 7 × 8 + 6, на них даётся чуть больше времени.</li>
       </ul>
@@ -478,7 +482,7 @@ a.btn{display:flex;align-items:center;justify-content:center;box-sizing:border-b
       <p class="summary" id="summary"></p>
       <button type="button" class="cta" id="btn-start">В игру</button>
     </div>
-    <p class="ver">Версия 1.4.4 · 12.11 13:10</p>
+    <p class="ver">Версия 1.5.0 · 12.11 13:33</p>
   </section>
 
   <!-- ===== Матч ===== -->
@@ -612,8 +616,12 @@ a.btn{display:flex;align-items:center;justify-content:center;box-sizing:border-b
     <header class="brand">
       <h1>Рейтинг</h1>
       <svg viewBox="0 0 150 10" aria-hidden="true"><path class="wave" d="M3 5 Q12 -1 21 5 T39 5 T57 5 T75 5 T93 5 T111 5 T129 5 T147 5"/></svg>
-      <p>Очки на одного игрока за сыгранные матчи.</p>
+      <p id="rt-sub">Очки на одного игрока за сыгранные матчи.</p>
     </header>
+    <div class="tchips" id="rt-mode">
+      <button type="button" class="tchip" data-rt="mode" data-v="bot" aria-pressed="true">Против ботов</button>
+      <button type="button" class="tchip" data-rt="mode" data-v="duel" aria-pressed="false">Онлайн-дуэли</button>
+    </div>
     <div class="tchips" id="rt-period">
       <button type="button" class="tchip" data-rt="period" data-v="week" aria-pressed="true">Неделя</button>
       <button type="button" class="tchip" data-rt="period" data-v="all" aria-pressed="false">Всё время</button>
@@ -628,6 +636,38 @@ a.btn{display:flex;align-items:center;justify-content:center;box-sizing:border-b
     <div class="actions">
       <button type="button" class="btn primary" id="btn-rating-profile">Профиль</button>
       <button type="button" class="btn" id="btn-rating-back">В меню</button>
+    </div>
+  </section>
+
+  <!-- ===== Дуэль ===== -->
+  <section class="screen" id="screen-duel" hidden>
+    <header class="brand">
+      <h1>Дуэль</h1>
+      <svg viewBox="0 0 150 10" aria-hidden="true"><path class="wave" d="M3 5 Q12 -1 21 5 T39 5 T57 5 T75 5 T93 5 T111 5 T129 5 T147 5"/></svg>
+      <p>Живой соперник, одни и те же задания, старт одновременно.</p>
+    </header>
+    <p class="pnote" id="du-sum"></p>
+    <div class="stack" id="du-lobby">
+      <button type="button" class="btn primary" id="du-create">Создать комнату для друга</button>
+      <div class="fld">
+        <label for="du-code-in">Код комнаты</label>
+        <input id="du-code-in" inputmode="numeric" pattern="[0-9]*" maxlength="4" autocomplete="off" spellcheck="false" placeholder="1234">
+        <button type="button" class="btn" id="du-join">Войти по коду</button>
+      </div>
+      <button type="button" class="btn" id="du-random">Случайный соперник</button>
+      <p class="pnote">Задания берутся из твоих настроек в меню (предмет, тема, уровень). Если входишь по коду, играешь по настройкам хозяина комнаты.</p>
+    </div>
+    <div class="stack" id="du-wait" hidden>
+      <p class="pnote" id="du-wait-text" role="status" aria-live="polite"></p>
+      <div id="du-room" hidden>
+        <p class="code" id="du-code"></p>
+        <button type="button" class="mini" id="du-share">Отправить ссылку</button>
+      </div>
+      <button type="button" class="btn" id="du-bot" hidden>Сыграть с ботом</button>
+    </div>
+    <p class="err" id="du-err" role="alert"></p>
+    <div class="actions">
+      <button type="button" class="btn" id="du-back">Назад</button>
     </div>
   </section>
 
@@ -668,7 +708,7 @@ a.btn{display:flex;align-items:center;justify-content:center;box-sizing:border-b
     </div>
     <div class="actions">
       <button type="button" class="btn" id="btn-profile-back">В меню</button>
-      <p class="ver">Версия 1.4.4 · 12.11 13:10</p>
+      <p class="ver">Версия 1.5.0 · 12.11 13:33</p>
     </div>
   </section>
 
@@ -741,7 +781,7 @@ const VOWEL = [
   ['расцв_т', 'е', 'еи', 3], ['расч_т', 'ё', 'ёе', 3], ['расчётл_вый', 'и', 'ие', 3],
   ['р_мень', 'е', 'еи', 2], ['р_спублика', 'е', 'еи', 2], ['рюкз_к', 'а', 'ао', 1],
   ['с_лют', 'а', 'ао', 1], ['с_ить', 'б', 'бп', 2], ['с_иб', 'г', 'гк', 2],
-  ['с_ать', 'д', 'дт', 1], ['с_ать', 'ж', 'жш', 2], ['сл_ва', 'е', 'еи', 1],
+  ['сд_ть', 'а', 'ао', 1], ['сж_ть', 'а', 'ао', 2], ['сл_ва', 'е', 'еи', 1],
   ['с_ревноваться', 'о', 'оа', 3], ['сост_заться', 'я', 'яе', 3], ['сп_ртакиада', 'а', 'ао', 3],
   ['сп_ртсмен', 'о', 'оа', 2], ['спр_ва', 'а', 'ао', 1], ['справ_дливый', 'е', 'еи', 3],
   ['ст_дион', 'а', 'ао', 1], ['ст_речь', 'е', 'еи', 3], ['стр_миться', 'е', 'еи', 2],
@@ -925,7 +965,7 @@ function cleanMatch(m) {
     sport: SPORTS[m.sport] ? m.sport : 'football', format: m.format === '2x2' ? '2x2' : '1x1', you: +m.you || 0, foe: +m.foe || 0,
     outcome: m.outcome === 'win' || m.outcome === 'lose' ? m.outcome : 'draw', correct: +m.correct || 0, wrong: +m.wrong || 0,
     timeouts: +m.timeouts || 0, sec: +m.sec || 0, byTopic: (m.byTopic && typeof m.byTopic === 'object') ? m.byTopic : {}, sent: !!m.sent,
-    rej: m.rej ? String(m.rej).slice(0, 24) : ''
+    rej: m.rej ? String(m.rej).slice(0, 24) : '', online: !!m.online
   };
 }
 function sanitize(o) {
@@ -1099,7 +1139,7 @@ const ball = { x: 0, y: 0, rot: 0 };
 
 /* ---------- экраны и меню ---------- */
 function show(name) {
-  for (const n of ['menu', 'match', 'result', 'progress', 'rating', 'profile']) $('#screen-' + n).hidden = n !== name;
+  for (const n of ['menu', 'match', 'result', 'progress', 'rating', 'duel', 'profile']) $('#screen-' + n).hidden = n !== name;
   $('#screen-' + name).scrollTop = 0;
 }
 let topicsFor = '';
@@ -1228,10 +1268,12 @@ async function api(method, path, body) {
 const ERR_TEXT = {
   bad_nick: 'Ник: от 2 до 16 символов, буквы, цифры, пробел и _ . -', nick_taken: 'Такой ник уже занят, придумай другой',
   nick_not_allowed: 'Такой ник нельзя. Выбери другой', bad_avatar: 'Выбери аватар из списка', not_logged_in: 'Профиль не найден, попробуй позже',
-  bad_code: 'Код не подошёл. Проверь буквы и цифры', too_many_requests: 'Слишком много попыток, подожди немного'
+  bad_code: 'Код не подошёл. Проверь буквы и цифры', too_many_requests: 'Слишком много попыток, подожди немного',
+  room_not_found: 'Комната не найдена. Проверь код: четыре цифры', own_room: 'Это твоя комната. Дай код другу', room_taken: 'В этой комнате уже играют',
+  duel_not_found: 'Эта дуэль уже закрыта', bad_subject: 'Выбери предмет в меню', bad_level: 'Выбери уровень в меню'
 };
 const errText = (e) => ERR_TEXT[e.message] || (e.status ? 'Сервер не смог ответить, попробуй позже (' + e.message + ')' : 'Нет связи с сервером (' + (e.message || 'сеть') + ')');
-const unsentCount = () => prefs.matches.filter(m => !m.sent).length;
+const unsentCount = () => prefs.matches.filter(m => !m.sent && !m.online).length;   // дуэли сервер считает сам, их не отправляем
 const userName = (u) => u.name || u.nick || 'Неопознанный';
 
 /* аватар вверху слева: подсказывает вписать свои данные */
@@ -1264,7 +1306,7 @@ async function refreshAccount() {
 function resendOnce() {
   let done = ''; try { done = localStorage.getItem('school2game-resend') || ''; } catch (e) { /* ничего */ }
   if (done === '2') return;
-  prefs.matches.forEach(m => { m.sent = false; m.rej = ''; });
+  prefs.matches.forEach(m => { if (!m.online) { m.sent = false; m.rej = ''; } });
   savePrefs();
   try { localStorage.setItem('school2game-resend', '2'); } catch (e) { /* ничего */ }
 }
@@ -1284,16 +1326,16 @@ async function syncNow() {
     if (!acc.user) { await ensureAccount(); renderAvatarBtn(); }
     if (!acc.user) return false;
     for (let guard = 0; guard < 10; guard++) {
-      const batch = prefs.matches.filter(m => !m.sent).slice(0, 100);
+      const batch = prefs.matches.filter(m => !m.sent && !m.online).slice(0, 100);
       const r = await api('POST', 'sync', {
         guestId: prefs.guestId, stats: prefs.stats,
-        matches: batch.map(m => { const c = Object.assign({}, m); delete c.sent; delete c.rej; return c; })
+        matches: batch.map(m => { const c = Object.assign({}, m); delete c.sent; delete c.rej; delete c.online; return c; })
       });
       const done = new Set([].concat(r.accepted, r.duplicate, r.rejected.map(x => x.id)));
       prefs.matches.forEach(m => { if (done.has(m.id)) m.sent = true; });
       r.rejected.forEach(x => { const m = prefs.matches.find(y => y.id === x.id); if (m) m.rej = x.reason || 'rejected'; });
       mergeData({ stats: r.stats });
-      if (!batch.length || !prefs.matches.some(m => !m.sent)) break;
+      if (!batch.length || !prefs.matches.some(m => !m.sent && !m.online)) break;
     }
     savePrefs(); renderCoach();
     if (!$('#screen-profile').hidden) renderProfile();
@@ -1407,37 +1449,39 @@ $('#btn-recover').addEventListener('click', async () => {
 });
 
 /* рейтинг */
-const rt = { period: 'week', subject: 'all', seq: 0 };
+const rt = { mode: 'bot', period: 'week', subject: 'all', seq: 0 };
 const MEDAL = ['🥇', '🥈', '🥉'];
 function ratingRow(e) {
   const row = h('div', 'lrow' + (e.me ? ' me' : ''));
   row.appendChild(h('span', 'rk', e.rank <= 3 ? MEDAL[e.rank - 1] : String(e.rank)));
   row.appendChild(h('span', 'av', e.avatar || '🙂'));
   const nm = h('span', 'nm', e.name + (e.me ? ' (ты)' : ''));
-  nm.appendChild(h('small', null, `матчей ${e.matches} · побед ${e.wins}`));
+  nm.appendChild(h('small', null, rt.mode === 'duel' ? `дуэлей ${e.matches} · очков ${e.points}` : `матчей ${e.matches} · побед ${e.wins}`));
   row.appendChild(nm);
-  row.appendChild(h('span', 'pt', String(e.points)));
+  row.appendChild(h('span', 'pt', String(rt.mode === 'duel' ? e.wins : e.points)));   // в дуэлях места по победам
   return row;
 }
 function renderRating(r) {
   const body = $('#rating-body'); body.textContent = '';
-  if (!r.top.length) body.appendChild(h('p', 'pnote', 'Здесь пока пусто. Сыграй матч, и ты будешь первым!'));
+  const duel = r.mode === 'duel';
+  if (!r.top.length) body.appendChild(h('p', 'pnote', duel ? 'Здесь пока пусто. Сыграй дуэль с живым игроком, и ты будешь первым!' : 'Здесь пока пусто. Сыграй матч, и ты будешь первым!'));
   r.top.forEach(e => body.appendChild(ratingRow(e)));
   if (r.me && !r.top.some(e => e.me)) { body.appendChild(h('p', 'dots', '…')); body.appendChild(ratingRow(r.me)); }
   const note = $('#rating-note'), pb = $('#btn-rating-profile');
   pb.textContent = 'Мой профиль';
   if (!acc.user) note.textContent = 'Профиль загружается. Результаты попадут в рейтинг, как только появится связь.';
-  else if (!r.me) note.textContent = 'У тебя пока нет очков в этом разрезе. Сыграй матч!';
+  else if (!r.me) note.textContent = duel ? 'У тебя пока нет зачётных дуэлей в этом разрезе. Сыграй с живым игроком!' : 'У тебя пока нет очков в этом разрезе. Сыграй матч!';
   else if (r.me.anon) note.textContent = `Ты в рейтинге как «${r.me.name}», место ${r.me.rank}. Впиши ник в профиле, чтобы тебя узнавали.`;
-  else note.textContent = `Твоё место: ${r.me.rank}, очков: ${r.me.points}.`;
+  else note.textContent = duel ? `Твоё место: ${r.me.rank}, побед: ${r.me.wins}.` : `Твоё место: ${r.me.rank}, очков: ${r.me.points}.`;
 }
 async function loadRating() {
   const seq = ++rt.seq, body = $('#rating-body');
   body.textContent = ''; body.appendChild(h('p', 'pnote', 'Загружаю…'));
+  $('#rt-sub').textContent = rt.mode === 'duel' ? 'Онлайн-дуэли с живыми игроками: места по числу побед, затем по очкам.' : 'Очки на одного игрока за сыгранные матчи против ботов.';
   $$('#screen-rating [data-rt]').forEach(b => b.setAttribute('aria-pressed', String(rt[b.dataset.rt] === b.dataset.v)));
   try {
     await syncNow();
-    const r = await api('GET', `leaderboard?period=${rt.period}&subject=${rt.subject}`);
+    const r = await api('GET', `leaderboard?mode=${rt.mode}&period=${rt.period}&subject=${rt.subject}`);
     if (seq === rt.seq) renderRating(r);
   } catch (e) {
     if (seq !== rt.seq) return;
@@ -1452,6 +1496,180 @@ $('#screen-rating').addEventListener('click', (e) => {
   const b = e.target.closest('[data-rt]'); if (!b) return;
   rt[b.dataset.rt] = b.dataset.v; loadRating();
 });
+
+/* ---------- онлайн-дуэль (сервер: api/duel/*) ---------- */
+/* Общий хостинг без сокетов, поэтому обмен опросом: раз в секунду шлём свои очки и получаем очки соперника.
+   Задания у обоих одинаковые (общий seed), старт и время матча идут по часам сервера. */
+const sleep = (ms) => new Promise(r => setTimeout(r, ms));
+/* запрос к дуэли; заодно смещение часов сервера относительно часов телефона (по середине запроса) */
+async function duelApi(method, path, body) {
+  const t0 = Date.now();
+  const d = await api(method, path, body);
+  const t1 = Date.now();
+  if (d && typeof d.serverMs === 'number') { d.off = d.serverMs - (t0 + t1) / 2; d.rtt = t1 - t0; }
+  return d;
+}
+const du = { seq: 0, phase: 'lobby', id: 0, code: '' };
+const duStop = () => { du.seq++; };
+function duShow(phase, text) {
+  du.phase = phase;
+  $('#du-lobby').hidden = phase !== 'lobby';
+  $('#du-wait').hidden = phase === 'lobby';
+  $('#du-room').hidden = phase !== 'room';
+  $('#du-bot').hidden = true;
+  $('#du-wait-text').textContent = text || '';
+  $('#du-back').textContent = phase === 'lobby' ? 'Назад' : 'Отменить';
+}
+function openDuel() {
+  duStop();
+  $('#du-err').textContent = ''; $('#du-code-in').value = '';
+  const topic = prefs.topic === 'all' || prefs.topic === 'weak' ? 'все темы' : TOPICS[prefs.topic].name;
+  $('#du-sum').textContent = `Твои настройки: ${SUBJECTS[prefs.subject].name} · ${topic} · ${LEVELS[prefs.level].name} · ${SPORTS[prefs.sport].name}`;
+  duShow('lobby');
+  show('duel');
+}
+async function duReady() {
+  if (!acc.user) { await refreshAccount(); renderAvatarBtn(); }
+  if (!acc.user) { $('#du-err').textContent = (acc.err ? acc.err + '. ' : '') + 'Для дуэли нужна связь с сервером и профиль. Попробуй ещё раз.'; return false; }
+  return true;
+}
+const duBody = () => ({ subject: prefs.subject, topic: prefs.topic === 'weak' ? 'all' : prefs.topic, level: prefs.level, sport: prefs.sport });
+function duFound(d) {
+  duStop();
+  du.id = d.id;
+  pendingDuel = d;
+  startMatch();
+}
+/* ждём, пока в комнату войдёт друг */
+async function duWatch(seq) {
+  while (seq === du.seq) {
+    await sleep(1500);
+    if (seq !== du.seq) return;
+    try {
+      const d = await duelApi('GET', `duel/state?id=${du.id}`);
+      if (seq !== du.seq) return;
+      if (d.status === 'playing') return duFound(d);
+      if (d.status !== 'waiting') { duShow('lobby'); $('#du-err').textContent = 'Комната закрыта. Создай новую.'; return; }
+    } catch (e) {
+      if (e.status === 404 || e.status === 401) { duShow('lobby'); $('#du-err').textContent = errText(e); return; }   // остальное: связь мигнула, пробуем дальше
+    }
+  }
+}
+/* очередь «случайный соперник»: повторяем запрос, пока не найдётся пара */
+async function duQueue(seq) {
+  const t0 = Date.now();
+  while (seq === du.seq) {
+    try {
+      const d = await duelApi('POST', 'duel/queue', duBody());
+      if (seq !== du.seq) return;
+      if (d.status === 'playing') return duFound(d);
+      const waited = (Date.now() - t0) / 1000;
+      $('#du-wait-text').textContent = waited < 20 ? 'Ищем соперника…' : 'Пока никого нет. Подожди ещё или сыграй с ботом.';
+      $('#du-bot').hidden = waited < 20;
+    } catch (e) {
+      if (e.status === 429 || e.status === 400 || e.status === 401) { duShow('lobby'); $('#du-err').textContent = errText(e); return; }
+    }
+    await sleep(1500);
+  }
+}
+async function duStart(kind, arg) {
+  const err = $('#du-err'); err.textContent = '';
+  const btns = ['#du-create', '#du-join', '#du-random'].map(x => $(x));
+  btns.forEach(b => { b.disabled = true; });
+  try {
+    if (!(await duReady())) return;
+    duStop(); const seq = du.seq;
+    if (kind === 'create') {
+      const d = await duelApi('POST', 'duel/create', duBody());
+      du.id = d.id; du.code = d.code;
+      duShow('room', 'Скажи код другу или отправь ссылку. Как только друг войдёт, матч начнётся сам.');
+      $('#du-code').textContent = d.code;
+      duWatch(du.seq);
+    } else if (kind === 'join') {
+      duFound(await duelApi('POST', 'duel/join', { code: arg, sport: prefs.sport }));
+    } else {
+      du.id = 0; duShow('queue', 'Ищем соперника…');
+      duQueue(seq);
+    }
+  } catch (e) { duShow('lobby'); err.textContent = errText(e); }
+  finally { btns.forEach(b => { b.disabled = false; }); }
+}
+$('#btn-duel').addEventListener('click', openDuel);
+$('#du-create').addEventListener('click', () => duStart('create'));
+$('#du-random').addEventListener('click', () => duStart('random'));
+$('#du-join').addEventListener('click', () => {
+  const code = $('#du-code-in').value.replace(/\D/g, '');
+  if (code.length !== 4) { $('#du-err').textContent = ERR_TEXT.room_not_found; return; }
+  duStart('join', code);
+});
+$('#du-code-in').addEventListener('input', (e) => { e.target.value = e.target.value.replace(/\D/g, '').slice(0, 4); });
+$('#du-back').addEventListener('click', () => {
+  const wasWaiting = du.phase !== 'lobby', id = du.phase === 'room' ? du.id : 0;
+  duStop(); du.phase = 'lobby';
+  if (wasWaiting) api('POST', 'duel/leave', { id }).catch(() => {});
+  syncMenu(); show('menu');
+});
+$('#du-bot').addEventListener('click', () => {
+  duStop(); du.phase = 'lobby';
+  api('POST', 'duel/leave', {}).catch(() => {});
+  startMatch();
+});
+$('#du-share').addEventListener('click', async () => {
+  const url = location.origin + location.pathname + '?duel=' + du.code, text = `Сыграем в school2game! Код комнаты: ${du.code}`;
+  try { if (navigator.share) { await navigator.share({ title: 'school2game', text, url }); return; } } catch (e) { if (e && e.name === 'AbortError') return; }
+  let ok = false;
+  try { if (navigator.clipboard) { await navigator.clipboard.writeText(text + ' ' + url); ok = true; } } catch (e) { /* ничего */ }
+  $('#du-wait-text').textContent = ok ? 'Ссылка скопирована. Отправь её другу.' : `Скажи другу код ${du.code}.`;
+});
+
+/* во время матча: раз в секунду свои очки → очки соперника */
+async function duelPulse() {
+  const D = M && M.duel;
+  if (!D || D.busy || M.over) return;
+  D.busy = true;
+  try {
+    const t0 = Date.now();
+    const d = await api('POST', 'duel/progress', { id: D.id, pts: M.me.pts });
+    const t1 = Date.now();
+    if (!M || M.duel !== D) return;
+    if (typeof d.serverMs === 'number' && (!D.rtt || t1 - t0 <= D.rtt)) { D.off = d.serverMs - (t0 + t1) / 2; D.rtt = t1 - t0; }   // берём самый быстрый обмен: он точнее
+    duelApply(d);
+  } catch (e) { /* связь мигнула: матч идёт, следующий опрос догонит */ }
+  finally { D.busy = false; }
+}
+function duelApply(d) {
+  const D = M && M.duel;
+  if (!D || d.id !== D.id) return;
+  if (d.opp) {
+    const foe = M.foes[0];
+    foe.pts = Math.max(foe.pts, d.opp.pts);
+    if (d.opp.gone && !D.gone && !M.over) toast('Связь с соперником пропала…', 'bad');
+    D.gone = d.opp.gone;
+  }
+  if (d.status === 'cancelled' && !M.over) {          // соперник вышел ещё до старта
+    clearInterval(D.timer); M.over = true; cancelAnimationFrame(M.raf);
+    openDuel(); $('#du-err').textContent = 'Соперник вышел до начала. Попробуй ещё раз.';
+    return;
+  }
+  if (d.status === 'done') { D.result = d.result || D.result; if (!M.over) endMatch('time'); }
+}
+/* матч у меня закончился: просим сервер подвести итог (ждём соперника не дольше 8 секунд) */
+async function settleDuel(reason) {
+  const D = M.duel;
+  clearInterval(D.timer);
+  toast('Считаем результат…', 'you');
+  const t0 = Date.now();
+  while (!D.result && Date.now() - t0 < 8000) {
+    try {
+      const d = await api('POST', 'duel/progress', { id: D.id, pts: M.me.pts, fin: true });
+      if (d.opp) M.foes[0].pts = Math.max(M.foes[0].pts, d.opp.pts);
+      if (d.status === 'done' && d.result) D.result = d.result;
+      else if (d.status === 'cancelled') break;
+    } catch (e) { if (e.status === 404 || e.status === 422) break; }
+    if (!D.result) await sleep(900);
+  }
+  if (M.duel === D) finishMatch(reason);
+}
 
 /* ---------- мяч ---------- */
 function setBall(x, y) {
@@ -1510,21 +1728,26 @@ function confetti() {
 /* ---------- матч ---------- */
 const teamPts = (t) => t === 'you' ? M.me.pts + M.mates.reduce((s, b) => s + b.pts, 0) : M.foes.reduce((s, b) => s + b.pts, 0);
 
+let pendingDuel = null;   // данные дуэли для ближайшего startMatch (с сервера); пусто: матч против ботов
 function startMatch() {
+  const D = pendingDuel; pendingDuel = null;
   normalizePrefs();
-  const teamSize = prefs.format === '2x2' ? 2 : 1;
-  const names = shuffle(BOT_NAMES).slice(0, teamSize * 2 - 1);
-  const foeSport = pick(Object.keys(SPORTS));
-  const sc = SUBJECTS[prefs.subject].botScale, b0 = LEVELS[prefs.level].bot;
+  // в дуэли настройки (предмет, тема, уровень) и seed задаёт сервер, а соперник живой: боты не нужны
+  const S = D ? { subject: D.subject, topic: D.topic, level: D.level, sport: D.sport } : prefs;
+  const teamSize = !D && prefs.format === '2x2' ? 2 : 1;
+  const names = D ? [D.opp.name] : shuffle(BOT_NAMES).slice(0, teamSize * 2 - 1);
+  const foeSport = D ? (SPORTS[D.opp.sport] ? D.opp.sport : 'football') : pick(Object.keys(SPORTS));
+  const sc = SUBJECTS[S.subject].botScale, b0 = LEVELS[S.level].bot;
   const bp = { mean: b0.mean * sc, sd: b0.sd, min: b0.min * sc, acc: b0.acc };
-  const mk = (name, team) => ({ name, team, pts: 0, run: 0, delay: 0, nextAt: 0, p: bp, sport: team === 'foe' ? foeSport : prefs.sport });
+  const mk = (name, team) => ({ name, team, pts: 0, run: 0, delay: 0, nextAt: 0, p: bp, sport: team === 'foe' ? foeSport : S.sport });
   const mates = teamSize === 2 ? [mk(names[0], 'you')] : [];
   const foes = names.slice(mates.length).map(n => mk(n, 'foe'));
-  const seed = (Date.now() ^ Math.floor(Math.random() * 4294967296)) >>> 0;
+  const seed = D ? D.seed : (Date.now() ^ Math.floor(Math.random() * 4294967296)) >>> 0;
   M = {
-    subject: prefs.subject, topicMode: prefs.topic, level: prefs.level, sport: prefs.sport, foeSport, teamSize, target: POINTS_PER_PLAYER * teamSize,
-    rng: mulberry32(seed), me: { name: 'Ты', team: 'you', pts: 0 }, mates, foes, bots: mates.concat(foes),
-    phase: 'countdown', cd: 3, cdShown: 0, clock: 0, qt: 0, lock: 0, run: 0, bestRun: 0, input: '', q: null, prevQ: null,
+    subject: S.subject, topicMode: S.topic, level: S.level, sport: S.sport, foeSport, teamSize, target: POINTS_PER_PLAYER * teamSize,
+    rng: mulberry32(seed), me: { name: 'Ты', team: 'you', pts: 0 }, mates, foes, bots: D ? [] : mates.concat(foes),
+    duel: D ? { id: D.id, startMs: D.startMs, off: D.off || 0, result: null, busy: false, gone: false, timer: 0 } : null, menu: false,
+    phase: 'countdown', cd: D ? Math.max(0, (D.startMs - (Date.now() + (D.off || 0))) / 1000) : 3, cdShown: 0, clock: 0, qt: 0, lock: 0, run: 0, bestRun: 0, input: '', q: null, prevQ: null,
     paused: false, over: false, stats: { correct: 0, wrong: 0, timeouts: 0, fastest: Infinity }, review: new Set(), byTopic: {},
     tw: null, hold: 0, ballBusy: false, toastLeft: 0, last: performance.now(), cache: {}, zone: 'fast', keysLocked: true, raf: 0
   };
@@ -1539,9 +1762,12 @@ function startMatch() {
   el.youPts.textContent = '0'; el.foePts.textContent = '0';
   el.clock.textContent = fmt(MATCH_SECONDS);
   el.pause.hidden = true;
+  $('#pause h2').textContent = D ? 'Выйти из дуэли?' : 'Пауза';
+  $('#btn-resume').textContent = D ? 'Остаться' : 'Продолжить';
+  $('#btn-quit').textContent = D ? 'Сдаться и выйти' : 'Выйти в меню';
   el.toast.className = 'toast';
   el.shout.className = 'shout';
-  el.countdown.hidden = false; el.countdown.textContent = '3';
+  el.countdown.hidden = false; el.countdown.textContent = D ? String(Math.ceil(M.cd)) : '3';
   el.eq.className = 'eq ready'; el.pre.textContent = 'Приготовься'; el.pre.hidden = false;
   el.text.hidden = true; el.ans.hidden = false;
   el.post.textContent = ''; el.post.hidden = true;
@@ -1558,6 +1784,7 @@ function startMatch() {
   el.keypad.classList.add('locked'); el.choices.classList.add('locked');
   show('match');
   M.raf = requestAnimationFrame(frame);
+  if (D) { M.duel.timer = setInterval(duelPulse, 1000); duelPulse(); }
 }
 
 function frame(ts) {
@@ -1573,7 +1800,8 @@ function frame(ts) {
 }
 
 function runCountdown(dt) {
-  M.cd -= dt;
+  if (M.duel) M.cd = (M.duel.startMs - (Date.now() + M.duel.off)) / 1000;   // общий старт по часам сервера
+  else M.cd -= dt;
   const n = Math.ceil(M.cd);
   if (n > 0 && n !== M.cdShown) { M.cdShown = n; el.countdown.textContent = n; restart(el.countdown, 'beat'); }
   if (M.cd <= 0) {
@@ -1587,7 +1815,8 @@ function runCountdown(dt) {
 }
 
 function tick(dt) {
-  M.clock += dt;
+  if (M.duel) M.clock = Math.max(M.clock, (Date.now() + M.duel.off - M.duel.startMs) / 1000);   // время матча общее: пауз и отставания нет
+  else M.clock += dt;
   if (M.lock > 0) M.lock = Math.max(0, M.lock - dt);
   M.qt += dt;
   if (M.qt >= M.q.limit) onTimeout();
@@ -1666,7 +1895,7 @@ function renderQuestion() {
 }
 
 /* ---------- ответы игрока ---------- */
-const canInput = () => !!M && !M.over && M.phase === 'play' && !M.paused && M.lock <= 0 && !!M.q;
+const canInput = () => !!M && !M.over && M.phase === 'play' && !M.paused && !M.menu && M.lock <= 0 && !!M.q;
 function noteOutcome(q, ok) {
   if (q.noted) return;
   q.noted = true;
@@ -1776,15 +2005,24 @@ function endMatch(reason) {
   if (M.over) return;
   M.over = true;
   cancelAnimationFrame(M.raf);
+  if (M.duel) { settleDuel(reason); return; }
+  finishMatch(reason);
+}
+
+function finishMatch(reason) {
+  const R = M.duel && M.duel.result;               // итог дуэли считает сервер: у обоих игроков он одинаковый
+  if (R) { M.me.pts = R.you; M.foes[0].pts = R.foe; }
   const yp = teamPts('you'), fp = teamPts('foe');
-  const outcome = yp > fp ? 'win' : yp < fp ? 'lose' : 'draw';
+  const outcome = R ? R.outcome : yp > fp ? 'win' : yp < fp ? 'lose' : 'draw';
   const team = M.teamSize === 2;
   const title = { win: 'Победа!', lose: 'Поражение', draw: 'Ничья' }[outcome];
   let why;
-  if (reason === 'target') why = outcome === 'win' ? `${team ? 'Ваша команда первой набрала' : 'Ты первым набрал'} ${M.target} очков.` : `${team ? 'Соперники первыми набрали' : 'Соперник первым набрал'} ${M.target} очков.`;
+  if (R && R.forfeit) why = R.forfeit === 'opp' ? 'Соперник вышел из матча.' : 'Ты вышел из матча.';
+  else if (reason === 'target') why = outcome === 'win' ? `${team ? 'Ваша команда первой набрала' : 'Ты первым набрал'} ${M.target} очков.` : `${team ? 'Соперники первыми набрали' : 'Соперник первым набрал'} ${M.target} очков.`;
   else why = outcome === 'win' ? 'Время вышло, у тебя больше очков.' : outcome === 'lose' ? 'Время вышло, у соперника больше очков.' : 'Время вышло, счёт равный.';
 
   $('#res-title').textContent = title; $('#res-title').dataset.o = outcome;
+  if (R && !R.rated) why += ' В рейтинг дуэлей не пошла: слишком мало очков.';
   $('#res-reason').textContent = why;
   $('#res-you-label').textContent = M.youLabel; $('#res-foe-label').textContent = M.foeLabel;
   $('#res-you-pts').textContent = yp; $('#res-foe-pts').textContent = fp;
@@ -1814,29 +2052,42 @@ function endMatch(reason) {
   prefs.matches.push({
     id: uid(), t: Date.now(), subject: M.subject, topic: M.topicMode, level: M.level, sport: M.sport, format: M.teamSize === 2 ? '2x2' : '1x1',
     you: yp, foe: fp, outcome, correct: s.correct, wrong: s.wrong, timeouts: s.timeouts, sec: Math.round(M.clock),
-    byTopic: JSON.parse(JSON.stringify(M.byTopic)), sent: false
+    byTopic: JSON.parse(JSON.stringify(M.byTopic)), sent: !!M.duel, online: !!M.duel
   });
   if (prefs.matches.length > MAX_MATCHES) prefs.matches.splice(0, prefs.matches.length - MAX_MATCHES);
   prefs.rec.played++; if (outcome === 'win') prefs.rec.wins++;
   prefs.rec.best[M.level] = Math.max(prefs.rec.best[M.level] || 0, M.me.pts);
   savePrefs(); askPersist(); syncMenu(); syncSoon();
-  $('#btn-weak').hidden = !hasWeakStuff(M.subject);
+  $('#btn-weak').hidden = !!M.duel || !hasWeakStuff(M.subject);
+  lastDuel = !!M.duel;
+  $('#btn-rematch').textContent = lastDuel ? 'Новая дуэль' : 'Реванш';
   show('result');
 }
 
 function setPause(on) {
-  if (!M || M.over) return;
+  if (!M || M.over || M.duel) return;     // в дуэли паузы нет: соперник играет
   M.paused = on; el.pause.hidden = !on; M.last = performance.now();
 }
 
 /* ---------- события ---------- */
 $('#btn-start').addEventListener('click', startMatch);
-$('#btn-rematch').addEventListener('click', startMatch);
+let lastDuel = false;
+$('#btn-rematch').addEventListener('click', () => { if (lastDuel) openDuel(); else startMatch(); });
 $('#btn-weak').addEventListener('click', () => { prefs.subject = M.subject; prefs.topic = 'weak'; savePrefs(); startMatch(); });
 $('#btn-menu').addEventListener('click', () => { syncMenu(); show('menu'); });
-$('#btn-pause').addEventListener('click', () => setPause(true));
-$('#btn-resume').addEventListener('click', () => setPause(false));
-$('#btn-quit').addEventListener('click', () => { if (M) { M.over = true; cancelAnimationFrame(M.raf); } savePrefs(); syncMenu(); show('menu'); });
+/* в дуэли кнопка «пауза» открывает только вопрос «выйти?»: время идёт, ответить на вопрос пока нельзя */
+function duelMenu(on) { if (!M || M.over || !M.duel) return; M.menu = on; el.pause.hidden = !on; }
+const togglePause = () => { if (M && M.duel) duelMenu(!M.menu); else setPause(!(M && M.paused)); };
+$('#btn-pause').addEventListener('click', () => { if (M && M.duel) duelMenu(true); else setPause(true); });
+$('#btn-resume').addEventListener('click', () => { if (M && M.duel) duelMenu(false); else setPause(false); });
+$('#btn-quit').addEventListener('click', () => {
+  if (M) {
+    if (M.duel && !M.over) duelApi('POST', 'duel/progress', { id: M.duel.id, quit: true }).catch(() => {});
+    if (M.duel) clearInterval(M.duel.timer);
+    M.over = true; cancelAnimationFrame(M.raf);
+  }
+  savePrefs(); syncMenu(); show('menu');
+});
 
 const press = (k) => { if (!M || M.over) return; if (k === 'back') backspace(); else if (k === 'ok') submit(); else pressDigit(k); };
 const clearDown = (box) => $$('.down', box).forEach(k => k.classList.remove('down'));
@@ -1863,7 +2114,7 @@ document.addEventListener('keydown', (e) => {
   }
   else if (e.key === 'Backspace') { e.preventDefault(); press('back'); }
   else if (e.key === 'Enter') { e.preventDefault(); press('ok'); }
-  else if (e.key === 'Escape') setPause(!M.paused);
+  else if (e.key === 'Escape') togglePause();
 });
 document.addEventListener('visibilitychange', () => {
   if (document.hidden) { savePrefs(); if (M && !M.over) setPause(true); }
@@ -1894,7 +2145,13 @@ window.addEventListener('pagehide', savePrefs);
 loadPrefs();
 syncMenu();
 show('menu');
-initAccount();
+const boot = initAccount();
+/* ссылка-приглашение друга: ?duel=1234 → сразу входим в комнату */
+const linkCode = (() => { try { return (new URLSearchParams(location.search).get('duel') || '').replace(/\D/g, '').slice(0, 4); } catch (e) { return ''; } })();
+if (linkCode.length === 4) {
+  try { history.replaceState(null, '', location.pathname + location.hash); } catch (e) { /* ничего */ }
+  boot.then(() => { openDuel(); $('#du-code-in').value = linkCode; duStart('join', linkCode); });
+}
 })();
 </script>
 

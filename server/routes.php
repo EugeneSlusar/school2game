@@ -6,6 +6,7 @@ require_once __DIR__ . '/bootstrap.php';
 require_once __DIR__ . '/schema.php';
 require_once __DIR__ . '/validate.php';
 require_once __DIR__ . '/profanity.php';
+require_once __DIR__ . '/duel.php';
 
 const COOKIE = 's2g_sess';
 const CODE_ALPHABET = 'ABCDEFGHJKMNPQRSTUVWXYZ23456789';
@@ -206,17 +207,25 @@ function weekStart(?int $now = null): int {
     return $d->getTimestamp();
 }
 
+/**
+ * Рейтинг. mode=bot (по умолчанию): матчи против ботов, таблица results, порядок по очкам.
+ * mode=duel: онлайн-дуэли, таблица duel_results, порядок по победам, затем по очкам.
+ */
 function leaderboard(array $req): array {
     $period = ($req['query']['period'] ?? 'all') === 'week' ? 'week' : 'all';
+    $mode = ($req['query']['mode'] ?? 'bot') === 'duel' ? 'duel' : 'bot';
     $subject = $req['query']['subject'] ?? 'all';
     if ($subject !== 'all' && !isset(SUBJECT_TOPICS[$subject])) fail(400, 'bad_subject');
+    $tbl = $mode === 'duel' ? 'duel_results' : 'results';
+    $wins = "SUM(CASE WHEN r.outcome = 'win' THEN 1 ELSE 0 END)";
+    $order = $mode === 'duel' ? "$wins DESC, SUM(r.score) DESC, COUNT(*) ASC, u.id ASC" : 'SUM(r.score) DESC, COUNT(*) ASC, u.id ASC';
     $where = ['1 = 1']; $args = [];
     if ($period === 'week') { $where[] = 'r.played_at >= ?'; $args[] = weekStart(); }
     if ($subject !== 'all') { $where[] = 'r.subject = ?'; $args[] = $subject; }
     $w = implode(' AND ', $where);
-    $rows = all("SELECT u.id, u.nick, u.avatar, SUM(r.score) pts, COUNT(*) n, SUM(CASE WHEN r.outcome = 'win' THEN 1 ELSE 0 END) wins
-                 FROM results r JOIN users u ON u.id = r.user_id WHERE $w
-                 GROUP BY u.id, u.nick, u.avatar ORDER BY pts DESC, n ASC, u.id ASC LIMIT 50", $args);
+    $rows = all("SELECT u.id, u.nick, u.avatar, SUM(r.score) pts, COUNT(*) n, $wins wins
+                 FROM $tbl r JOIN users u ON u.id = r.user_id WHERE $w
+                 GROUP BY u.id, u.nick, u.avatar ORDER BY $order LIMIT 50", $args);
     $me = sessionUser($req);
     $list = []; $mine = null;
     foreach ($rows as $i => $r) {
@@ -225,24 +234,26 @@ function leaderboard(array $req): array {
         $list[] = $e;
     }
     if ($me && !$mine) {
-        $own = one("SELECT SUM(r.score) pts, COUNT(*) n, SUM(CASE WHEN r.outcome = 'win' THEN 1 ELSE 0 END) wins FROM results r WHERE r.user_id = ?" .
+        $own = one("SELECT SUM(r.score) pts, COUNT(*) n, $wins wins FROM $tbl r WHERE r.user_id = ?" .
             ($period === 'week' ? ' AND r.played_at >= ?' : '') . ($subject !== 'all' ? ' AND r.subject = ?' : ''),
             array_merge([$me['id']], $args));
         if ($own && (int)$own['n'] > 0) {
-            $above = one("SELECT COUNT(*) c FROM (SELECT r.user_id FROM results r JOIN users u ON u.id = r.user_id WHERE $w GROUP BY r.user_id HAVING SUM(r.score) > ?) t",
-                array_merge($args, [(int)$own['pts']]));
+            $cond = $mode === 'duel' ? "$wins > ? OR ($wins = ? AND SUM(r.score) > ?)" : 'SUM(r.score) > ?';
+            $cargs = $mode === 'duel' ? [(int)$own['wins'], (int)$own['wins'], (int)$own['pts']] : [(int)$own['pts']];
+            $above = one("SELECT COUNT(*) c FROM (SELECT r.user_id FROM $tbl r JOIN users u ON u.id = r.user_id WHERE $w GROUP BY r.user_id HAVING $cond) t",
+                array_merge($args, $cargs));
             $mine = ['rank' => (int)$above['c'] + 1, 'name' => displayName($me), 'anon' => $me['nick'] === null, 'avatar' => $me['avatar'], 'points' => (int)$own['pts'],
                 'matches' => (int)$own['n'], 'wins' => (int)$own['wins'], 'me' => true];
         }
     }
-    return [200, ['period' => $period, 'subject' => $subject, 'top' => $list, 'me' => $mine]];
+    return [200, ['period' => $period, 'subject' => $subject, 'mode' => $mode, 'top' => $list, 'me' => $mine]];
 }
 
 /* ---------- маршрутизация ---------- */
 function routes(): array {
     return [
         'GET /health' => 'S2G\health',
-        'GET /config' => fn() => [200, ['accounts' => true, 'avatars' => AVATARS]],
+        'GET /config' => fn() => [200, ['accounts' => true, 'duels' => true, 'avatars' => AVATARS]],
         'POST /auth/guest' => 'S2G\authGuest',
         'POST /auth/recover' => 'S2G\authRecover',
         'POST /auth/newcode' => 'S2G\newCode',
@@ -251,6 +262,12 @@ function routes(): array {
         'POST /profile' => 'S2G\profile',
         'POST /sync' => 'S2G\sync',
         'GET /leaderboard' => 'S2G\leaderboard',
+        'POST /duel/create' => 'S2G\duelCreate',
+        'POST /duel/join' => 'S2G\duelJoin',
+        'POST /duel/queue' => 'S2G\duelQueue',
+        'POST /duel/leave' => 'S2G\duelLeave',
+        'GET /duel/state' => 'S2G\duelState',
+        'POST /duel/progress' => 'S2G\duelProgress',
     ];
 }
 
