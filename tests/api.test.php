@@ -10,7 +10,7 @@ function ok(bool $c, string $name): void { global $fail, $n; $n++; if (!$c) { $f
 
 // --- миграции
 $first = migrate(); $again = migrate();
-ok($first === ['001_init', '002_accounts', '003_duels', '004_duel_stats'] && $again === [], 'миграции: первый запуск применяет все, повторный ничего');
+ok($first === ['001_init', '002_accounts', '003_duels', '004_duel_stats', '005_progress'] && $again === [], 'миграции: первый запуск применяет все, повторный ничего');
 $tmp = sys_get_temp_dir() . '/s2g-mig-' . getmypid(); mkdir($tmp);
 foreach (['001_init', '002_accounts'] as $f) copy(__DIR__ . "/../server/migrations/$f.php", "$tmp/$f.php");
 file_put_contents("$tmp/003_extra.php", '<?php return function ($db, $d) { $db->exec("CREATE TABLE IF NOT EXISTS extra_t (id INT)"); };');
@@ -77,7 +77,7 @@ ok($blocked, 'создание аккаунтов с одного адреса �
 [$st, $r] = call('POST', '/profile', ['nick' => 'Ветер', 'avatar' => '⚽'], $c1); ok($st === 200 && $r['user']['nick'] === 'Ветер' && $r['user']['name'] === 'Ветер' && !$r['user']['needsNick'], 'ник сохранён');
 [$u2, $c2] = guest('1.2.3.5');
 [$st, $r] = call('POST', '/profile', ['nick' => 'ветер'], $c2); ok($st === 409 && $r['error'] === 'nick_taken', 'ник занят без учёта регистра');
-[$st] = call('POST', '/profile', ['nick' => 'Молния', 'avatar' => '🔥'], $c2); ok($st === 200, 'второй игрок получил ник');
+[$st] = call('POST', '/profile', ['nick' => 'Молния', 'avatar' => '🦁'], $c2); ok($st === 200, 'второй игрок получил ник');
 [$st, $r] = call('POST', '/profile', ['nick' => 'Ветрище'], $c1); ok($st === 200 && $r['user']['nick'] === 'Ветрище', 'ник можно сменить');
 call('POST', '/profile', ['nick' => 'Ветер'], $c1);
 [$st, $r] = call('GET', '/me', null, $c1); ok($st === 200 && $r['user']['nick'] === 'Ветер', '/me показывает ник');
@@ -228,6 +228,72 @@ ok($r['status'] === 'playing' && $r['opp']['name'] === 'Альфа' && $r['topic
 [, $r3] = call('POST', '/duel/queue', $q, $ca); ok($r3['status'] === 'queued', 'очередь: после получения дуэли нового поиска нет, пока не позвали снова');
 call('POST', '/duel/leave', [], $ca); $qn = one('SELECT COUNT(*) c FROM duel_queue WHERE user_id = ?', [$ua['id']]); ok((int)$qn['c'] === 0, 'выход из очереди');
 unset($GLOBALS['S2G_NOW_MS']);
+
+// --- система возвращения: серия, задания дня, опыт, значки, открываемые аватары
+use function S2G\{computeProgress, mskDay, questsFor};
+function rowMatch(int $uid, string $id, int $playedAt, array $o = []): void {
+    $o += ['subject' => 'math', 'outcome' => 'win', 'correct' => 12, 'wrong' => 2, 'timeouts' => 1];
+    q('INSERT INTO results (id, user_id, played_at, subject, topic, level, sport, format, you_pts, foe_pts, score, outcome, correct, wrong, timeouts, sec, by_topic, created_at)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
+        [$id, $uid, $playedAt, $o['subject'], 'all', 'medium', 'football', '1x1', 20, 10, 20, $o['outcome'], $o['correct'], $o['wrong'], $o['timeouts'], 120, '{}', $playedAt]);
+}
+$NOW = time(); $DAY = 86400;
+$free = true; for ($i = 0; $i < 14; $i++) { [$gu] = guest('3.0.1.' . $i); if (array_search($gu['avatar'], S2G\AVATARS, true) >= S2G\FREE_AVATARS) $free = false; }
+ok($free, 'новый игрок получает аватар только из открытых сразу');
+[$st] = call('GET', '/progress'); ok($st === 401, 'прогресс без входа = 401');
+[$up, $cp] = guest('3.0.0.1');
+[$st, $pr] = call('GET', '/progress', null, $cp);
+ok($st === 200 && $pr['xp'] === 0 && $pr['level'] === 1 && $pr['title'] === 'Новичок' && $pr['streak']['current'] === 0 && count($pr['quests']['items']) === 3 && count($pr['badges']) === 16, 'новый игрок: нулевой прогресс, три задания, значки');
+ok(count(array_filter($pr['avatars'], fn($a) => !$a['unlocked'])) === 14 && $pr['nextXp'] === 80, 'закрыто 14 аватаров, до 2 уровня 80 опыта');
+[$st, $r] = call('POST', '/profile', ['avatar' => '🐲'], $cp); ok($st === 403 && $r['error'] === 'avatar_locked', 'закрытый аватар выбрать нельзя');
+[$st] = call('POST', '/profile', ['avatar' => '🐸'], $cp); ok($st === 200, 'открытый аватар выбирается');
+// матч даёт опыт, серию и первый значок
+call('POST', '/sync', ['matches' => [match_('p1', ['correct' => 12, 'byTopic' => ['mul' => ['n' => 15, 'ok' => 12]]])]], $cp);
+[, $pr] = call('GET', '/progress', null, $cp);
+ok($pr['xp'] >= 22 && $pr['streak']['current'] === 1 && $pr['streak']['playedToday'] === true && $pr['totals']['matches'] === 1 && $pr['totals']['wins'] === 1, 'матч: 12 верных + 5 + 5 за победу (не меньше 22 опыта, плюс награда за задание дня), серия 1');
+ok(array_values(array_filter($pr['badges'], fn($b) => $b['id'] === 'first'))[0]['unlocked'] === true, 'значок «Первый матч» получен');
+// «Контрольная»: принимается, даёт опыт и значки; нереальное отклоняется
+$tt = fn(string $id, array $o = []) => $o + ['id' => $id, 't' => ($NOW - 60) * 1000, 'subject' => 'math', 'topic' => 'mul', 'total' => 64, 'correct' => 64, 'wrong' => 0, 'sec' => 70];
+[, $r] = call('POST', '/sync', ['tests' => [$tt('t1'), $tt('t2', ['sec' => 20]), $tt('t3', ['correct' => 20, 'wrong' => 10, 'sec' => 100]), $tt('t4', ['correct' => 60, 'wrong' => 20])]], $cp);
+ok($r['accepted'] === ['t1'] && count($r['rejected']) === 3 && $r['rejected'][0]['reason'] === 'too_fast' && $r['rejected'][1]['reason'] === 'ended_early' && $r['rejected'][2]['reason'] === 'too_many_answers', 'контрольная: принята верная, нереальные отклонены');
+[, $r] = call('POST', '/sync', ['tests' => [$tt('t1')]], $cp); ok($r['duplicate'] === ['t1'], 'контрольная: повтор не удваивает');
+[, $pr] = call('GET', '/progress', null, $cp);
+$bid = fn(string $id) => array_values(array_filter($pr['badges'], fn($b) => $b['id'] === $id))[0]['unlocked'];
+ok($pr['xp'] >= 22 + 64 + 10 + 20 && $bid('test5') && $bid('clean') && $pr['totals']['tests'] === 1 && $pr['totals']['correct'] === 76, 'контрольная на «5» без ошибок: опыт и значки');
+[$st, $r] = call('POST', '/sync', ['tests' => 'x'], $cp); ok($st === 400, 'контрольные не списком отклонены');
+
+// серия дней: подряд, пропуск, «заморозка»
+[$us, $cs] = guest('3.0.0.2'); $sid = (int)$us['id']; $today = mskDay($NOW);
+foreach ([2, 1, 0] as $k) rowMatch($sid, "s$k", $NOW - $k * $DAY);
+$p = computeProgress($sid, $NOW);
+ok($p['streak']['current'] === 3 && $p['streak']['best'] === 3 && $p['streak']['playedToday'] === true, 'серия 3 дня подряд');
+$p = computeProgress($sid, $NOW + $DAY); ok($p['streak']['current'] === 3 && $p['streak']['playedToday'] === false, 'вчера играл, сегодня ещё нет: серия жива');
+$p = computeProgress($sid, $NOW + 2 * $DAY); ok($p['streak']['current'] === 0 && $p['streak']['best'] === 3, 'два дня без игры: серия сгорела, рекорд остался');
+ok(array_values(array_filter($p['avatars'], fn($a) => $a['a'] === '⭐'))[0]['unlocked'] === true && array_values(array_filter($p['avatars'], fn($a) => $a['a'] === '🔥'))[0]['unlocked'] === false, 'аватар «⭐» открыт серией 3, «🔥» (7 дней) ещё закрыт');
+[$st] = call('POST', '/profile', ['avatar' => '⭐'], $cs); ok($st === 200, 'открытый наградой аватар выбирается');
+[$uf, $cf] = guest('3.0.0.3'); $fid = (int)$uf['id'];
+foreach ([8, 7, 6, 5, 4, 3, 2] as $k) rowMatch($fid, "f$k", $NOW - $k * $DAY);   // 7 дней подряд: «заморозка», потом пропуск одного дня
+rowMatch($fid, 'f0', $NOW);
+$p = computeProgress($fid, $NOW);
+ok($p['streak']['current'] === 8 && $p['streak']['best'] === 8 && $p['streak']['freezes'] === 0, '7 дней подряд дали «заморозку», она закрыла пропущенный день: серия 8');
+$gap = computeProgress($fid, $NOW + 2 * $DAY); ok($gap['streak']['current'] === 0, 'без заморозки пропуск ломает серию');
+
+// задания дня и бонус за все три
+[$uq, $cq] = guest('3.0.0.4'); $qid = (int)$uq['id'];
+rowMatch($qid, 'q1', $NOW - 100, ['subject' => 'math', 'correct' => 50, 'wrong' => 2, 'timeouts' => 0]);
+rowMatch($qid, 'q2', $NOW - 90, ['subject' => 'rus', 'correct' => 50, 'wrong' => 2, 'timeouts' => 0]);
+q('INSERT INTO test_results (id, user_id, played_at, created_at, subject, topic, total, correct, wrong, sec) VALUES (?,?,?,?,?,?,?,?,?,?)', ['qt1', $qid, $NOW - 80, $NOW - 80, 'math', 'mul', 64, 64, 0, 100]);
+$p = computeProgress($qid, $NOW);
+$picked = questsFor($qid, $today); $expect = 2 * (50 + 5 + 5) + (64 + 10 + 20) + S2G\QUEST_DAY_BONUS; foreach ($picked as $id) $expect += S2G\QUESTS[$id][3];
+ok($p['quests']['allDone'] === true && $p['quests']['done'] === 3 && $p['xp'] === $expect && $picked === questsFor($qid, $today), 'три задания дня выполнены, опыт с наградами и бонусом, набор заданий стабилен');
+ok(computeProgress($qid, $NOW + $DAY)['quests']['done'] === 0 && count(computeProgress($qid, $NOW + $DAY)['quests']['items']) === 3, 'на следующий день новые задания');
+ok(computeProgress($qid, $NOW)['level'] === S2G\levelOf($expect) && S2G\levelOf(79) === 1 && S2G\levelOf(80) === 2 && S2G\levelOf(240) === 3, 'уровни: 80 опыта = 2, 240 = 3');
+// офлайн-матч, присланный через неделю, серию не рисует задним числом
+[$uo] = guest('3.0.0.5'); $oid = (int)$uo['id'];
+q('INSERT INTO results (id, user_id, played_at, subject, topic, level, sport, format, you_pts, foe_pts, score, outcome, correct, wrong, timeouts, sec, by_topic, created_at) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)',
+    ['o1', $oid, $NOW - 7 * $DAY, 'math', 'all', 'medium', 'football', '1x1', 20, 10, 20, 'win', 12, 2, 1, 120, '{}', $NOW]);
+$p = computeProgress($oid, $NOW); ok($p['streak']['current'] === 1 && $p['streak']['best'] === 1 && $p['xp'] >= 22, 'старый матч, присланный позже двух суток, считается днём получения');
+[$st, $p2] = call('GET', '/progress', null, $cp); ok(!array_key_exists('recovery_hash', $p2) && !array_key_exists('id', $p2), 'в прогрессе нет служебных полей');
 
 // --- выход
 call('POST', '/logout', [], $c1);

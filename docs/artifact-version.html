@@ -273,6 +273,48 @@ button:focus-visible,summary:focus-visible{outline:3px solid var(--you);outline-
 .cmp-row span:nth-child(2){font-size:16px;line-height:1.1;color:var(--ink-soft)}
 .cmp-row .v{font:400 21px/1 var(--font-display);font-variant-numeric:tabular-nums;white-space:nowrap}
 .cmp-row .v.best{color:var(--good)}
+.hero{display:grid;grid-template-columns:auto minmax(0,1fr) auto;align-items:center;gap:10px;width:100%;padding:8px 10px;text-align:left;color:var(--ink);background:var(--card);border:2px solid var(--ink);border-radius:14px;box-shadow:3px 3px 0 var(--shade)}
+.hero[hidden]{display:none}
+.hero:active{transform:translate(2px,2px)}
+.hero .lv{display:grid;justify-items:center;min-width:52px;padding:5px 6px;color:var(--on-you);background:var(--you);border-radius:10px;line-height:1}
+.hero .lv b{font:400 24px/1 var(--font-display)}
+.hero .lv small{margin-top:2px;font-size:11px;letter-spacing:.04em;text-transform:uppercase}
+.hero .ttl{display:flex;justify-content:space-between;align-items:baseline;gap:8px}
+.hero .ttl b{font:400 17px/1.1 var(--font-display)}
+.hero .ttl i{font-style:normal;font-size:14px;color:var(--ink-soft);white-space:nowrap}
+.bar{display:block;height:9px;margin:5px 0 4px;background:var(--shade);border-radius:99px;overflow:hidden}
+.bar>i{display:block;height:100%;width:0;background:var(--you);border-radius:99px;transition:width .4s}
+.hero .sub{display:block;font-size:14px;line-height:1.15;color:var(--ink-soft)}
+.fire{display:grid;justify-items:center;min-width:44px;line-height:1}
+.fire::before{content:"\1F525";font-size:22px}
+.fire b{margin-top:2px;font:400 20px/1 var(--font-display)}
+.fire small{font-size:11px;color:var(--ink-soft)}
+.fire.off{filter:grayscale(1);opacity:.55}
+.reward{display:grid;gap:6px;padding:10px 12px;background:var(--you-soft);border:2px solid var(--you);border-radius:14px;animation:rin .35s}
+@keyframes rin{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:none}}
+.reward h3{margin:0;font:400 13px/1 var(--font-display);letter-spacing:.09em;text-transform:uppercase;color:var(--you)}
+.reward p{margin:0;font-size:18px;line-height:1.2}
+.reward .xp{font:400 26px/1 var(--font-display);color:var(--you)}
+.rcard{display:grid;gap:8px;padding:12px;background:var(--card);border:2px solid var(--ink);border-radius:14px}
+.rcard h2{margin:0;font:400 13px/1 var(--font-display);letter-spacing:.09em;text-transform:uppercase;color:var(--ink-soft)}
+.rcard .big{font:400 24px/1.1 var(--font-display)}
+.rcard p{margin:0;font-size:16px;color:var(--ink-soft)}
+.quest{display:grid;grid-template-columns:28px minmax(0,1fr) auto;align-items:center;gap:8px;padding:6px 0;border-top:2px dashed var(--shade)}
+.quest .ck{display:grid;place-items:center;width:26px;height:26px;border:2px solid var(--ink);border-radius:8px;font-size:16px;line-height:1}
+.quest.done .ck{color:var(--on-you);background:var(--good);border-color:var(--good)}
+.quest .qt{font-size:18px;line-height:1.15}
+.quest .qt small{display:block;font-size:14px;color:var(--ink-soft)}
+.quest .qx{font:400 14px/1 var(--font-display);color:var(--good)}
+.bgrid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px}
+.badge{display:grid;grid-template-columns:34px minmax(0,1fr);align-items:center;gap:8px;padding:8px;background:var(--card);border:2px solid var(--ink);border-radius:12px}
+.badge .bi{font-size:28px;line-height:1;text-align:center}
+.badge b{display:block;font:400 15px/1.1 var(--font-display);overflow-wrap:anywhere}
+.badge small{display:block;margin-top:2px;font-size:13px;line-height:1.1;color:var(--ink-soft)}
+.badge.lock{border-style:dashed;border-color:var(--shade)}
+.badge.lock .bi{filter:grayscale(1);opacity:.45}
+.avs button{position:relative}
+.avs button.lock{opacity:.45;filter:grayscale(1)}
+.avs button.lock::after{content:"\1F512";position:absolute;right:1px;bottom:1px;font-size:11px;line-height:1}
 .review h3{margin:0 0 8px;font:400 13px/1 var(--font-display);letter-spacing:.09em;text-transform:uppercase;color:var(--ink-soft)}
 .review p{margin:0;color:var(--ink-soft)}
 .coachline{margin:0;font-size:18px;text-align:center}
@@ -368,6 +410,16 @@ a.btn{display:flex;align-items:center;justify-content:center;box-sizing:border-b
         <i class="dot" id="avb-dot" hidden></i>
       </button>
     </div>
+
+    <button type="button" class="hero" id="btn-hero" aria-label="Мой уровень, серия дней и задания" hidden>
+      <span class="lv"><b id="hero-lv">1</b><small>уровень</small></span>
+      <span class="mid">
+        <span class="ttl"><b id="hero-title">Новичок</b><i id="hero-xp"></i></span>
+        <span class="bar"><i id="hero-bar"></i></span>
+        <span class="sub" id="hero-sub"></span>
+      </span>
+      <span class="fire" id="hero-fire"><b id="hero-streak">0</b><small id="hero-fire-l">дней</small></span>
+    </button>
 
     <div class="group">
       <h2>Предмет</h2>
@@ -563,6 +615,7 @@ a.btn{display:flex;align-items:center;justify-content:center;box-sizing:border-b
         <div class="pts" id="res-foe-pts">0</div>
       </div>
     </div>
+    <div class="reward" id="res-reward" hidden role="status" aria-live="polite"></div>
     <div class="cmp" id="res-cmp" hidden>
       <div class="cmp-head"><b id="cmp-you">Ты</b><span></span><b id="cmp-foe">Соперник</b></div>
       <div id="cmp-rows"></div>
@@ -644,6 +697,20 @@ a.btn{display:flex;align-items:center;justify-content:center;box-sizing:border-b
     <div class="actions">
       <button type="button" class="btn primary" id="btn-rating-profile">Профиль</button>
       <button type="button" class="btn" id="btn-rating-back">В меню</button>
+    </div>
+  </section>
+
+  <!-- ===== Награды ===== -->
+  <section class="screen" id="screen-rewards" hidden>
+    <header class="brand">
+      <h1>Награды</h1>
+      <svg viewBox="0 0 150 10" aria-hidden="true"><path class="wave" d="M3 5 Q12 -1 21 5 T39 5 T57 5 T75 5 T93 5 T111 5 T129 5 T147 5"/></svg>
+      <p>Уровни, серия дней, задания и значки. Опыт копится за каждый верный ответ.</p>
+    </header>
+    <div id="rw-body"></div>
+    <p class="pnote" id="rw-note"></p>
+    <div class="actions">
+      <button type="button" class="btn" id="btn-rewards-back">В меню</button>
     </div>
   </section>
 
@@ -961,6 +1028,7 @@ const restart = (node, cls) => { node.classList.remove(cls); node.getBoundingCli
 const fmt = (s) => { const t = Math.ceil(s); return Math.floor(t / 60) + ':' + String(t % 60).padStart(2, '0'); };
 const h = (tag, cls, text) => { const n = document.createElement(tag); if (cls) n.className = cls; if (text != null) n.textContent = text; return n; };
 const dec = (x) => x.toFixed(1).replace('.', ',');
+const plural = (n, a, b, c) => { const m = n % 100, k = n % 10; return m >= 11 && m <= 14 ? c : k === 1 ? a : k >= 2 && k <= 4 ? b : c; };
 
 /* ---------- сохранённые настройки, статистика, ошибки ---------- */
 const prefs = {
@@ -988,7 +1056,7 @@ function cleanMatch(m) {
     sport: SPORTS[m.sport] ? m.sport : 'football', format: m.format === '2x2' ? '2x2' : '1x1', you: +m.you || 0, foe: +m.foe || 0,
     outcome: m.outcome === 'win' || m.outcome === 'lose' ? m.outcome : 'draw', correct: +m.correct || 0, wrong: +m.wrong || 0,
     timeouts: +m.timeouts || 0, sec: +m.sec || 0, byTopic: (m.byTopic && typeof m.byTopic === 'object') ? m.byTopic : {}, sent: !!m.sent,
-    rej: m.rej ? String(m.rej).slice(0, 24) : '', online: !!m.online, test: !!m.test
+    rej: m.rej ? String(m.rej).slice(0, 24) : '', online: !!m.online, test: !!m.test, total: +m.total || 0
   };
 }
 function sanitize(o) {
@@ -1162,7 +1230,7 @@ const ball = { x: 0, y: 0, rot: 0 };
 
 /* ---------- экраны и меню ---------- */
 function show(name) {
-  for (const n of ['menu', 'match', 'result', 'progress', 'rating', 'duel', 'profile']) $('#screen-' + n).hidden = n !== name;
+  for (const n of ['menu', 'match', 'result', 'progress', 'rating', 'rewards', 'duel', 'profile']) $('#screen-' + n).hidden = n !== name;
   $('#screen-' + name).scrollTop = 0;
 }
 let topicsFor = '';
@@ -1291,12 +1359,12 @@ async function api(method, path, body) {
 const ERR_TEXT = {
   bad_nick: 'Ник: от 2 до 16 символов, буквы, цифры, пробел и _ . -', nick_taken: 'Такой ник уже занят, придумай другой',
   nick_not_allowed: 'Такой ник нельзя. Выбери другой', bad_avatar: 'Выбери аватар из списка', not_logged_in: 'Профиль не найден, попробуй позже',
-  bad_code: 'Код не подошёл. Проверь буквы и цифры', too_many_requests: 'Слишком много попыток, подожди немного',
+  avatar_locked: 'Этот аватар пока закрыт, его нужно открыть игрой', bad_code: 'Код не подошёл. Проверь буквы и цифры', too_many_requests: 'Слишком много попыток, подожди немного',
   room_not_found: 'Комната не найдена. Проверь код: четыре цифры', own_room: 'Это твоя комната. Дай код другу', room_taken: 'В этой комнате уже играют',
   duel_not_found: 'Эта дуэль уже закрыта', bad_subject: 'Выбери предмет в меню', bad_level: 'Выбери уровень в меню'
 };
 const errText = (e) => ERR_TEXT[e.message] || (e.status ? 'Сервер не смог ответить, попробуй позже (' + e.message + ')' : 'Нет связи с сервером (' + (e.message || 'сеть') + ')');
-const unsentCount = () => prefs.matches.filter(m => !m.sent && !m.online && !m.test).length;   // дуэли сервер считает сам, их не отправляем
+const unsentCount = () => prefs.matches.filter(m => !m.sent && !m.online).length;   // дуэли сервер считает сам, их не отправляем
 const userName = (u) => u.name || u.nick || 'Неопознанный';
 
 /* аватар вверху слева: подсказывает вписать свои данные */
@@ -1329,7 +1397,7 @@ async function refreshAccount() {
 function resendOnce() {
   let done = ''; try { done = localStorage.getItem('school2game-resend') || ''; } catch (e) { /* ничего */ }
   if (done === '2') return;
-  prefs.matches.forEach(m => { if (!m.online && !m.test) { m.sent = false; m.rej = ''; } });
+  prefs.matches.forEach(m => { if (!m.online) { m.sent = false; m.rej = ''; } });
   savePrefs();
   try { localStorage.setItem('school2game-resend', '2'); } catch (e) { /* ничего */ }
 }
@@ -1337,7 +1405,7 @@ async function initAccount() {
   resendOnce();
   await refreshAccount();
   renderAvatarBtn();
-  if (acc.user) syncSoon();
+  if (acc.user) { syncSoon(); loadProgress(); }
   else setTimeout(() => { if (!acc.user) initAccount(); }, 15000);   // сервер мог быть занят: пробуем снова
 }
 
@@ -1349,16 +1417,18 @@ async function syncNow() {
     if (!acc.user) { await ensureAccount(); renderAvatarBtn(); }
     if (!acc.user) return false;
     for (let guard = 0; guard < 10; guard++) {
-      const batch = prefs.matches.filter(m => !m.sent && !m.online && !m.test).slice(0, 100);
+      prefs.matches.forEach(m => { if (m.test && !m.total) m.sent = true; });     // контрольные старой версии без размера материала сервер не примет
+      const batch = prefs.matches.filter(m => !m.sent && !m.online).slice(0, 100);
       const r = await api('POST', 'sync', {
         guestId: prefs.guestId, stats: prefs.stats,
-        matches: batch.map(m => { const c = Object.assign({}, m); delete c.sent; delete c.rej; delete c.online; delete c.test; return c; })
+        matches: batch.filter(m => !m.test).map(m => { const c = Object.assign({}, m); delete c.sent; delete c.rej; delete c.online; delete c.test; delete c.total; return c; }),
+        tests: batch.filter(m => m.test).map(m => ({ id: m.id, t: m.t, subject: m.subject, topic: m.topic, total: m.total, correct: m.you, wrong: m.foe, sec: m.sec }))   // контрольная: в прогресс, не в рейтинг
       });
       const done = new Set([].concat(r.accepted, r.duplicate, r.rejected.map(x => x.id)));
       prefs.matches.forEach(m => { if (done.has(m.id)) m.sent = true; });
       r.rejected.forEach(x => { const m = prefs.matches.find(y => y.id === x.id); if (m) m.rej = x.reason || 'rejected'; });
       mergeData({ stats: r.stats });
-      if (!batch.length || !prefs.matches.some(m => !m.sent && !m.online && !m.test)) break;
+      if (!batch.length || !prefs.matches.some(m => !m.sent && !m.online)) break;
     }
     savePrefs(); renderCoach();
     if (!$('#screen-profile').hidden) renderProfile();
@@ -1388,8 +1458,11 @@ function renderProfile() {
   $('#pf-av').textContent = pfAvatar || u.avatar || '🙂';
   $('#pf-nick').textContent = userName(u);
   const box = $('#pf-avs'); box.textContent = '';
-  ((acc.conf && acc.conf.avatars) || []).forEach(a => {
-    const b = h('button', null, a); b.type = 'button'; b.dataset.a = a; b.setAttribute('aria-pressed', String(a === (pfAvatar || u.avatar))); box.appendChild(b);
+  const avs = (prog.data && prog.data.avatars) || ((acc.conf && acc.conf.avatars) || []).map(a => ({ a, unlocked: true }));
+  avs.forEach(x => {
+    const b = h('button', x.unlocked || x.a === u.avatar ? null : 'lock', x.a); b.type = 'button'; b.dataset.a = x.a;
+    if (b.classList.contains('lock')) { b.dataset.need = x.need || ''; b.setAttribute('aria-label', `${x.a}, закрыт: ${x.need || ''}`); }
+    b.setAttribute('aria-pressed', String(x.a === (pfAvatar || u.avatar))); box.appendChild(b);
   });
   const n = unsentCount(), bad = prefs.matches.filter(m => m.rej);
   $('#pf-sync').textContent = (n ? `Ждут отправки в рейтинг: ${n}. ` : 'Все принятые матчи уже в рейтинге. ') +
@@ -1401,7 +1474,7 @@ function renderProfile() {
   $('#btn-code-copy').hidden = !rc;
 }
 function openProfile() {
-  pfAvatar = ''; $('#pf-err').textContent = ''; $('#pf-err').classList.remove('okmsg'); $('#rc-err').textContent = ''; $('#rc-in').value = '';
+  pfAvatar = ''; loadProgress(); $('#pf-err').textContent = ''; $('#pf-err').classList.remove('okmsg'); $('#rc-err').textContent = ''; $('#rc-in').value = '';
   $('#pf-nick-in').value = (acc.user && acc.user.nick) || '';
   renderProfile(); show('profile');
   if (!acc.user) retryProfile();
@@ -1418,6 +1491,7 @@ $('#btn-avatar').addEventListener('click', openProfile);
 $('#btn-profile-back').addEventListener('click', () => { syncMenu(); show('menu'); });
 $('#pf-avs').addEventListener('click', (e) => {
   const b = e.target.closest('button[data-a]'); if (!b) return;
+  if (b.classList.contains('lock')) { const er = $('#pf-err'); er.classList.remove('okmsg'); er.textContent = `Этот аватар откроется так: ${b.dataset.need || 'играй дальше'}`; return; }
   pfAvatar = b.dataset.a; $('#pf-av').textContent = pfAvatar;
   $$('#pf-avs button').forEach(x => x.setAttribute('aria-pressed', String(x === b)));
 });
@@ -1519,6 +1593,126 @@ $('#screen-rating').addEventListener('click', (e) => {
   const b = e.target.closest('[data-rt]'); if (!b) return;
   rt[b.dataset.rt] = b.dataset.v; loadRating();
 });
+
+/* ---------- прогресс: уровень, серия дней, задания дня, значки (сервер: api/progress) ---------- */
+/* Прогресс считает сервер по результатам игрока, поэтому он переезжает вместе с профилем. Без связи карточка просто не показывается. */
+const prog = { data: null };
+const SEEN_KEY = 'school2game-seen';      // что игрок уже видел (чтобы показать только новые награды)
+const getSeen = () => { try { return JSON.parse(localStorage.getItem(SEEN_KEY) || 'null'); } catch (e) { return null; } };
+const setSeen = (d) => {
+  try {
+    localStorage.setItem(SEEN_KEY, JSON.stringify({
+      xp: d.xp, level: d.level, day: d.day, streak: d.streak.current, badges: d.badges.filter(b => b.unlocked).map(b => b.id),
+      avatars: d.avatars.filter(a => a.unlocked).map(a => a.a), quests: d.quests.items.filter(q => q.done).map(q => q.id)
+    }));
+  } catch (e) { /* ничего */ }
+};
+async function loadProgress() {
+  if (!acc.user) return prog.data;
+  try { prog.data = await api('GET', 'progress'); } catch (e) { return prog.data; }
+  if (!getSeen()) setSeen(prog.data);
+  renderHero();
+  if (!$('#screen-rewards').hidden) renderRewards();
+  if (!$('#screen-profile').hidden) renderProfile();
+  return prog.data;
+}
+const mkBar = (pct) => { const b = h('span', 'bar'), i = h('i'); i.style.width = Math.max(0, Math.min(100, pct)) + '%'; b.appendChild(i); return b; };
+const levelPct = (d) => d.nextXp ? (d.xp - d.levelXp) / (d.nextXp - d.levelXp) * 100 : 100;
+function renderHero() {
+  const d = prog.data, b = $('#btn-hero');
+  b.hidden = !d;
+  if (!d) return;
+  const s = d.streak, q = d.quests;
+  $('#hero-lv').textContent = d.level; $('#hero-title').textContent = d.title;
+  $('#hero-xp').textContent = d.nextXp ? `${d.xp} / ${d.nextXp}` : `${d.xp}`;
+  $('#hero-bar').style.width = Math.round(levelPct(d)) + '%';
+  $('#hero-sub').textContent = q.allDone ? 'Все задания дня выполнены!'
+    : (!s.playedToday && s.current > 0 ? `Сыграй сегодня, и серия продолжится. Задания: ${q.done} из 3` : `Задания дня: ${q.done} из 3`);
+  $('#hero-streak').textContent = s.current; $('#hero-fire-l').textContent = plural(s.current, 'день', 'дня', 'дней');
+  $('#hero-fire').classList.toggle('off', s.current === 0);
+}
+function renderRewards() {
+  const d = prog.data, body = $('#rw-body'); body.textContent = '';
+  if (!d) { body.appendChild(h('p', 'pnote', acc.user ? 'Загружаю…' : 'Награды появятся, когда загрузится профиль и появится связь с сервером.')); return; }
+  const stack = h('div', 'stack'); body.appendChild(stack);
+  const add = (title) => { const c = h('section', 'rcard'); c.appendChild(h('h2', null, title)); stack.appendChild(c); return c; };
+
+  let c = add('Уровень');
+  c.appendChild(h('div', 'big', `${d.level} · ${d.title}`));
+  c.appendChild(mkBar(levelPct(d)));
+  c.appendChild(h('p', null, d.nextXp ? `Опыта: ${d.xp}. До уровня ${d.level + 1} осталось ${d.nextXp - d.xp}.` : `Опыта: ${d.xp}. Это высший уровень!`));
+  c.appendChild(h('p', null, 'Опыт даёт каждый верный ответ, матч, победа, контрольная и задания дня.'));
+
+  const s = d.streak;
+  c = add('Серия дней');
+  c.appendChild(h('div', 'big', `🔥 ${s.current} ${plural(s.current, 'день', 'дня', 'дней')}`));
+  c.appendChild(h('p', null, `Рекорд: ${s.best}. ` + (s.playedToday ? 'Сегодня ты уже играл, так держать!' : s.current > 0 ? 'Сыграй сегодня, и серия продолжится.' : 'Сыграй сегодня, чтобы начать новую серию.')));
+  c.appendChild(h('p', null, `Заморозок: ${s.freezes}. Каждые 7 дней серии дают заморозку: она сохранит серию, если пропустишь один день.`));
+
+  const q = d.quests;
+  c = add(`Задания дня: ${q.done} из 3`);
+  q.items.forEach(it => {
+    const row = h('div', 'quest' + (it.done ? ' done' : ''));
+    row.appendChild(h('span', 'ck', it.done ? '✓' : ''));
+    const t = h('span', 'qt', it.text); t.appendChild(h('small', null, `${it.have} из ${it.need}`)); row.appendChild(t);
+    row.appendChild(h('span', 'qx', `+${it.xp}`));
+    c.appendChild(row);
+  });
+  c.appendChild(h('p', null, q.allDone ? 'Все задания выполнены, приходи завтра за новыми.' : `За все три задания ещё +${q.bonus} опыта. Новые задания приходят каждый день.`));
+
+  const have = d.badges.filter(b => b.unlocked).length;
+  c = add(`Значки: ${have} из ${d.badges.length}`);
+  const grid = h('div', 'bgrid');
+  d.badges.forEach(b => {
+    const el = h('div', 'badge' + (b.unlocked ? '' : ' lock'));
+    el.appendChild(h('span', 'bi', b.icon));
+    const txt = h('span'); txt.appendChild(h('b', null, b.name));
+    txt.appendChild(h('small', null, b.unlocked ? b.how : `${b.how}${b.need > 1 ? ` (${b.have} из ${b.need})` : ''}`));
+    el.appendChild(txt); grid.appendChild(el);
+  });
+  c.appendChild(grid);
+
+  const open = d.avatars.filter(a => a.unlocked).length, next = d.avatars.find(a => !a.unlocked);
+  c = add(`Аватары: ${open} из ${d.avatars.length}`);
+  c.appendChild(h('p', null, next ? `Ближайший: ${next.a}, чтобы открыть: ${next.need}. Выбрать аватар можно в профиле.` : 'Все аватары открыты!'));
+}
+/* после матча: дождаться отправки, получить прогресс и показать, что прибавилось */
+function celebrate(d) {
+  const seen = getSeen(); setSeen(d);
+  const box = $('#res-reward'); box.textContent = ''; box.hidden = true;
+  if (!seen) return;
+  const lines = [], line = (t, cls) => lines.push(h('p', cls || null, t));
+  const gain = d.xp - seen.xp;
+  if (gain > 0) line(`+${gain} опыта`, 'xp');
+  if (d.level > seen.level) line(`🎉 Новый уровень ${d.level}: ${d.title}!`);
+  const hadB = new Set(seen.badges || []);
+  d.badges.filter(b => b.unlocked && !hadB.has(b.id)).forEach(b => line(`${b.icon} Новый значок: ${b.name}`));
+  const hadA = new Set(seen.avatars || []);
+  d.avatars.filter(a => a.unlocked && !hadA.has(a.a)).forEach(a => line(`${a.a} Открыт новый аватар. Выбери его в профиле`));
+  const sameDay = seen.day === d.day, hadQ = new Set(sameDay ? (seen.quests || []) : []);
+  d.quests.items.filter(it => it.done && !hadQ.has(it.id)).forEach(it => line(`✅ Задание выполнено: ${it.text} (+${it.xp})`));
+  if (d.quests.allDone && !(sameDay && (seen.quests || []).length === 3)) line(`🎁 Все задания дня: бонус +${d.quests.bonus}`);
+  if (d.streak.current > seen.streak) line(`🔥 Серия: ${d.streak.current} ${plural(d.streak.current, 'день', 'дня', 'дней')} подряд`);
+  if (!lines.length) return;
+  box.appendChild(h('h3', null, 'Награды'));
+  lines.forEach(l => box.appendChild(l));
+  box.hidden = false;
+}
+let rewardSeq = 0;
+async function rewardAfterMatch() {
+  const seq = ++rewardSeq;
+  $('#res-reward').hidden = true;
+  if (!acc.user) return;
+  for (let i = 0; i < 6 && (unsentCount() > 0 || acc.busy); i++) {
+    if (acc.busy) await sleep(700);
+    else { await syncNow(); if (unsentCount() > 0) await sleep(700); }
+  }
+  if (seq !== rewardSeq) return;
+  const d = await loadProgress();
+  if (d && seq === rewardSeq && !$('#screen-result').hidden) celebrate(d);
+}
+$('#btn-hero').addEventListener('click', () => { renderRewards(); show('rewards'); loadProgress(); });
+$('#btn-rewards-back').addEventListener('click', () => { syncMenu(); show('menu'); });
 
 /* ---------- онлайн-дуэль (сервер: api/duel/*) ---------- */
 /* Общий хостинг без сокетов, поэтому обмен опросом: раз в секунду шлём свои очки и получаем очки соперника.
@@ -2170,14 +2364,14 @@ function finishMatch(reason) {
   prefs.matches.push({
     id: uid(), t: Date.now(), subject: M.subject, topic: M.topicMode, level: M.level, sport: M.sport, format: M.teamSize === 2 ? '2x2' : '1x1',
     you: yp, foe: fp, outcome, correct: s.correct, wrong: s.wrong, timeouts: s.timeouts, sec: Math.round(M.clock),
-    byTopic: JSON.parse(JSON.stringify(M.byTopic)), sent: !!(M.duel || M.test), online: !!M.duel, test: !!M.test
+    byTopic: JSON.parse(JSON.stringify(M.byTopic)), sent: !!M.duel, online: !!M.duel, test: !!M.test, total: M.test ? M.test.total : 0
   });
   if (prefs.matches.length > MAX_MATCHES) prefs.matches.splice(0, prefs.matches.length - MAX_MATCHES);
   if (!M.test) {                                    // контрольная в рекорды матчей не идёт
     prefs.rec.played++; if (outcome === 'win') prefs.rec.wins++;
     prefs.rec.best[M.level] = Math.max(prefs.rec.best[M.level] || 0, M.me.pts);
   }
-  savePrefs(); askPersist(); syncMenu(); syncSoon();
+  savePrefs(); askPersist(); syncMenu(); syncSoon(); rewardAfterMatch();
   $('#btn-weak').hidden = !!M.duel || !!M.test || !hasWeakStuff(M.subject);
   lastMode = M.duel ? 'duel' : M.test ? 'test' : 'match';
   $('#btn-rematch').textContent = lastMode === 'duel' ? 'Новая дуэль' : lastMode === 'test' ? 'Ещё раз' : 'Реванш';
