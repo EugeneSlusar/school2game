@@ -258,6 +258,7 @@ button:focus-visible,summary:focus-visible{outline:3px solid var(--you);outline-
 .choices.locked .opt{opacity:.45}
 
 /* ---------- overlays, result, progress ---------- */
+.match.ctl .timer{visibility:hidden}
 .overlay{position:absolute;inset:0;z-index:5;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:12px;padding:24px;text-align:center;background:var(--veil);border-radius:16px}
 .overlay h2{margin:0 0 6px;font:400 34px/1 var(--font-display)}
 .btn{min-width:200px;height:52px;padding:0 20px;color:var(--ink);background:var(--card);border:2px solid var(--ink);border-radius:14px;box-shadow:0 4px 0 var(--ink);font:400 18px/1 var(--font-display)}
@@ -453,8 +454,9 @@ a.btn{display:flex;align-items:center;justify-content:center;box-sizing:border-b
       </div>
     </div>
 
-    <div class="row">
-      <button type="button" class="linkbtn" id="btn-duel">Онлайн-дуэль: с живым игроком</button>
+    <div class="row two">
+      <button type="button" class="linkbtn" id="btn-duel">Онлайн-дуэль</button>
+      <button type="button" class="linkbtn" id="btn-test">Контрольная</button>
     </div>
     <div class="row two">
       <button type="button" class="linkbtn" id="btn-progress">Мой прогресс</button>
@@ -470,6 +472,7 @@ a.btn{display:flex;align-items:center;justify-content:center;box-sizing:border-b
         <li>Ошибка или конец времени обрывает серию.</li>
         <li>В математике после ошибки кнопки замирают на 1 секунду и можно ответить снова. В русском языке после ошибки показывается верный ответ и идёт следующий вопрос.</li>
         <li>Матч идёт 2 минуты или до 50 очков на игрока.</li>
+        <li>Контрольная: 5 минут, весь материал выбранной темы по одному разу в случайном порядке (таблица умножения 2–9, все словарные слова и так далее). Что случится раньше: ответишь на всё или кончится время. Оценка по доле верных ответов: 90% и больше это «5», от 75% «4», от 50% «3». Без соперника, очков и рейтинга; результаты идут в «Мой прогресс».</li>
         <li>Онлайн-дуэль: два живых игрока получают одни и те же задания и начинают одновременно. Играют по тем же правилам, но без паузы. Побеждает тот, кто первым набрал 50 очков, а если время вышло, у кого очков больше. Дуэли идут в отдельный рейтинг онлайн-игр.</li>
         <li>Режим «Слабые места» чаще даёт темы, где ты ошибаешься, и повторяет твои прошлые ошибки.</li>
         <li>На сложном уровне по математике бывают примеры вида 3 × ? = 24 и 7 × 8 + 6, на них даётся чуть больше времени.</li>
@@ -482,7 +485,7 @@ a.btn{display:flex;align-items:center;justify-content:center;box-sizing:border-b
       <p class="summary" id="summary"></p>
       <button type="button" class="cta" id="btn-start">В игру</button>
     </div>
-    <p class="ver">Версия 1.5.0 · 12.11 13:33</p>
+    <p class="ver">Версия 1.6.0 · 12.11 13:51</p>
   </section>
 
   <!-- ===== Матч ===== -->
@@ -495,7 +498,7 @@ a.btn{display:flex;align-items:center;justify-content:center;box-sizing:border-b
       </div>
       <div class="clock">
         <div class="time" id="clock">2:00</div>
-        <div class="goal">до <span id="target">50</span></div>
+        <div class="goal"><span id="goal-pre">до</span> <span id="target">50</span></div>
       </div>
       <div class="team foe">
         <div class="who" id="foe-label">Соперник</div>
@@ -708,7 +711,7 @@ a.btn{display:flex;align-items:center;justify-content:center;box-sizing:border-b
     </div>
     <div class="actions">
       <button type="button" class="btn" id="btn-profile-back">В меню</button>
-      <p class="ver">Версия 1.5.0 · 12.11 13:33</p>
+      <p class="ver">Версия 1.6.0 · 12.11 13:51</p>
     </div>
   </section>
 
@@ -720,6 +723,7 @@ a.btn{display:flex;align-items:center;justify-content:center;box-sizing:border-b
 
 /* ---------- настройки игры ---------- */
 const MATCH_SECONDS = 120;      // длина матча
+const TEST_SECONDS = 300;       // контрольная: 5 минут
 const POINTS_PER_PLAYER = 50;   // цель на одного игрока (в 2×2 командная цель вдвое больше)
 const SHOT_BONUS = 3;           // гол / бросок за каждый третий верный подряд
 const FAST_SHARE = 0.5;         // быстрый ответ: в первую половину времени
@@ -856,16 +860,16 @@ function genDiv(rng, level) {
   const d = ri(rng, 3, 12), q = ri(rng, 3, 12), c = ri(rng, 2, 9), n = d * q;
   return numQ(`${n} ÷ ${d} + ${c} =`, '', q + c, `${n} ÷ ${d} + ${c} = ${q + c}`, 'comp', 3);
 }
-function genVowel(rng, level) {
+function genVowel(rng, level, item) {
   const pool = VOWEL.filter(it => TIERS[level].indexOf(it[3]) >= 0);
-  const it = rpick(rng, pool);
+  const it = item || rpick(rng, pool);
   const options = rshuffle(rng, it[2].split(''));
   const word = it[0].replace('_', it[1]);
   return { kind: 'choice', prompt: it[0], options, ans: options.indexOf(it[1]), full: word, fix: word, extra: 0 };
 }
-function genStress(rng, level) {
+function genStress(rng, level, item) {
   const pool = STRESS.filter(it => TIERS[level].indexOf(it[1]) >= 0);
-  const src = rpick(rng, pool)[0];
+  const src = (item || rpick(rng, pool))[0];
   const base = src.toLowerCase();
   let idx = -1;
   for (let i = 0; i < src.length; i++) if (src[i] !== base[i]) { idx = i; break; }
@@ -876,9 +880,9 @@ function genStress(rng, level) {
   const options = rshuffle(rng, [right, wrong]);
   return { kind: 'choice', prompt: 'Выбери верное ударение', options, ans: options.indexOf(right), full: right, fix: right, extra: 0 };
 }
-function genTsya(rng, level) {
+function genTsya(rng, level, item) {
   const pool = TSYA.filter(it => TIERS[level].indexOf(it[2]) >= 0);
-  const it = rpick(rng, pool);
+  const it = item || rpick(rng, pool);
   const options = rshuffle(rng, ['-тся', '-ться']);
   const key = '-' + it[1];
   return { kind: 'choice', prompt: it[0], options, ans: options.indexOf(key), full: it[0].replace('_', it[1]), fix: key, extra: 0 };
@@ -906,6 +910,20 @@ function makeQuestion(rng, level, topicId, prev) {
     q.limit = (q.kind === 'choice' ? LEVELS[level].limitChoice : LEVELS[level].limit) + (q.extra || 0);
     if (!prev || q.full !== prev.full) break;
   }
+  return q;
+}
+/* контрольная: весь материал темы по одному разу. Таблица: множители и частные 2–9 (по 64 примера), слова и ударения: весь список */
+const TEST_ITEMS = {
+  mul: () => { const o = []; for (let a = 2; a <= 9; a++) for (let b = 2; b <= 9; b++) o.push([a, b]); return o; },
+  div: () => { const o = []; for (let d = 2; d <= 9; d++) for (let q = 2; q <= 9; q++) o.push([d, q]); return o; },
+  vowel: () => VOWEL.slice(), stress: () => STRESS.slice(), tsya: () => TSYA.slice()
+};
+function testQuestion(rng, id, it) {
+  let q;
+  if (id === 'mul') q = numQ(`${it[0]} × ${it[1]} =`, '', it[0] * it[1], `${it[0]} × ${it[1]} = ${it[0] * it[1]}`);
+  else if (id === 'div') { const n = it[0] * it[1]; q = numQ(`${n} ÷ ${it[0]} =`, '', it[1], `${n} ÷ ${it[0]} = ${it[1]}`); }
+  else q = TOPICS[id].gen(rng, 'medium', it);
+  q.topic = id; q.limit = 9999;                      // на вопрос времени не ограничено, есть общие 5 минут
   return q;
 }
 /*==GEN-END==*/
@@ -965,7 +983,7 @@ function cleanMatch(m) {
     sport: SPORTS[m.sport] ? m.sport : 'football', format: m.format === '2x2' ? '2x2' : '1x1', you: +m.you || 0, foe: +m.foe || 0,
     outcome: m.outcome === 'win' || m.outcome === 'lose' ? m.outcome : 'draw', correct: +m.correct || 0, wrong: +m.wrong || 0,
     timeouts: +m.timeouts || 0, sec: +m.sec || 0, byTopic: (m.byTopic && typeof m.byTopic === 'object') ? m.byTopic : {}, sent: !!m.sent,
-    rej: m.rej ? String(m.rej).slice(0, 24) : '', online: !!m.online
+    rej: m.rej ? String(m.rej).slice(0, 24) : '', online: !!m.online, test: !!m.test
   };
 }
 function sanitize(o) {
@@ -1273,7 +1291,7 @@ const ERR_TEXT = {
   duel_not_found: 'Эта дуэль уже закрыта', bad_subject: 'Выбери предмет в меню', bad_level: 'Выбери уровень в меню'
 };
 const errText = (e) => ERR_TEXT[e.message] || (e.status ? 'Сервер не смог ответить, попробуй позже (' + e.message + ')' : 'Нет связи с сервером (' + (e.message || 'сеть') + ')');
-const unsentCount = () => prefs.matches.filter(m => !m.sent && !m.online).length;   // дуэли сервер считает сам, их не отправляем
+const unsentCount = () => prefs.matches.filter(m => !m.sent && !m.online && !m.test).length;   // дуэли сервер считает сам, их не отправляем
 const userName = (u) => u.name || u.nick || 'Неопознанный';
 
 /* аватар вверху слева: подсказывает вписать свои данные */
@@ -1306,7 +1324,7 @@ async function refreshAccount() {
 function resendOnce() {
   let done = ''; try { done = localStorage.getItem('school2game-resend') || ''; } catch (e) { /* ничего */ }
   if (done === '2') return;
-  prefs.matches.forEach(m => { if (!m.online) { m.sent = false; m.rej = ''; } });
+  prefs.matches.forEach(m => { if (!m.online && !m.test) { m.sent = false; m.rej = ''; } });
   savePrefs();
   try { localStorage.setItem('school2game-resend', '2'); } catch (e) { /* ничего */ }
 }
@@ -1326,16 +1344,16 @@ async function syncNow() {
     if (!acc.user) { await ensureAccount(); renderAvatarBtn(); }
     if (!acc.user) return false;
     for (let guard = 0; guard < 10; guard++) {
-      const batch = prefs.matches.filter(m => !m.sent && !m.online).slice(0, 100);
+      const batch = prefs.matches.filter(m => !m.sent && !m.online && !m.test).slice(0, 100);
       const r = await api('POST', 'sync', {
         guestId: prefs.guestId, stats: prefs.stats,
-        matches: batch.map(m => { const c = Object.assign({}, m); delete c.sent; delete c.rej; delete c.online; return c; })
+        matches: batch.map(m => { const c = Object.assign({}, m); delete c.sent; delete c.rej; delete c.online; delete c.test; return c; })
       });
       const done = new Set([].concat(r.accepted, r.duplicate, r.rejected.map(x => x.id)));
       prefs.matches.forEach(m => { if (done.has(m.id)) m.sent = true; });
       r.rejected.forEach(x => { const m = prefs.matches.find(y => y.id === x.id); if (m) m.rej = x.reason || 'rejected'; });
       mergeData({ stats: r.stats });
-      if (!batch.length || !prefs.matches.some(m => !m.sent && !m.online)) break;
+      if (!batch.length || !prefs.matches.some(m => !m.sent && !m.online && !m.test)) break;
     }
     savePrefs(); renderCoach();
     if (!$('#screen-profile').hidden) renderProfile();
@@ -1729,13 +1747,15 @@ function confetti() {
 const teamPts = (t) => t === 'you' ? M.me.pts + M.mates.reduce((s, b) => s + b.pts, 0) : M.foes.reduce((s, b) => s + b.pts, 0);
 
 let pendingDuel = null;   // данные дуэли для ближайшего startMatch (с сервера); пусто: матч против ботов
+let pendingTest = false;  // ближайший startMatch: контрольная
 function startMatch() {
   const D = pendingDuel; pendingDuel = null;
+  const TST = pendingTest; pendingTest = false;
   normalizePrefs();
   // в дуэли настройки (предмет, тема, уровень) и seed задаёт сервер, а соперник живой: боты не нужны
   const S = D ? { subject: D.subject, topic: D.topic, level: D.level, sport: D.sport } : prefs;
   const teamSize = !D && prefs.format === '2x2' ? 2 : 1;
-  const names = D ? [D.opp.name] : shuffle(BOT_NAMES).slice(0, teamSize * 2 - 1);
+  const names = D ? [D.opp.name] : TST ? [] : shuffle(BOT_NAMES).slice(0, teamSize * 2 - 1);
   const foeSport = D ? (SPORTS[D.opp.sport] ? D.opp.sport : 'football') : pick(Object.keys(SPORTS));
   const sc = SUBJECTS[S.subject].botScale, b0 = LEVELS[S.level].bot;
   const bp = { mean: b0.mean * sc, sd: b0.sd, min: b0.min * sc, acc: b0.acc };
@@ -1747,12 +1767,16 @@ function startMatch() {
     subject: S.subject, topicMode: S.topic, level: S.level, sport: S.sport, foeSport, teamSize, target: POINTS_PER_PLAYER * teamSize,
     rng: mulberry32(seed), me: { name: 'Ты', team: 'you', pts: 0 }, mates, foes, bots: D ? [] : mates.concat(foes),
     duel: D ? { id: D.id, startMs: D.startMs, off: D.off || 0, result: null, busy: false, gone: false, timer: 0 } : null, menu: false,
+    test: TST ? makeTest(S) : null, secs: TST ? TEST_SECONDS : MATCH_SECONDS,
     phase: 'countdown', cd: D ? Math.max(0, (D.startMs - (Date.now() + (D.off || 0))) / 1000) : 3, cdShown: 0, clock: 0, qt: 0, lock: 0, run: 0, bestRun: 0, input: '', q: null, prevQ: null,
     paused: false, over: false, stats: { correct: 0, wrong: 0, timeouts: 0, fastest: Infinity }, review: new Set(), byTopic: {},
     tw: null, hold: 0, ballBusy: false, toastLeft: 0, last: performance.now(), cache: {}, zone: 'fast', keysLocked: true, raf: 0
   };
-  M.youLabel = teamSize === 2 ? `Ты + ${mates[0].name}` : 'Ты';
-  M.foeLabel = teamSize === 2 ? `${foes[0].name} + ${foes[1].name}` : foes[0].name;
+  M.youLabel = teamSize === 2 ? `Ты + ${mates[0].name}` : TST ? 'Верно' : 'Ты';
+  M.foeLabel = TST ? 'Осталось' : teamSize === 2 ? `${foes[0].name} + ${foes[1].name}` : foes[0].name;
+  if (TST) M.target = M.test.total;
+  $('#screen-match').classList.toggle('ctl', !!TST);
+  $('#goal-pre').textContent = TST ? 'из' : 'до';
 
   el.field.innerHTML = fieldSVG(M.sport);
   ballEl = $('#ball'); netEl = $('#goalnet');
@@ -1760,7 +1784,7 @@ function startMatch() {
   el.youLabel.textContent = M.youLabel; el.foeLabel.textContent = M.foeLabel;
   el.target.textContent = M.target;
   el.youPts.textContent = '0'; el.foePts.textContent = '0';
-  el.clock.textContent = fmt(MATCH_SECONDS);
+  el.clock.textContent = fmt(M.secs);
   el.pause.hidden = true;
   $('#pause h2').textContent = D ? 'Выйти из дуэли?' : 'Пауза';
   $('#btn-resume').textContent = D ? 'Остаться' : 'Продолжить';
@@ -1867,6 +1891,7 @@ function pickMistake(rng, prev) {
 }
 function nextQuestion() {
   M.prevQ = M.q;
+  if (M.test) { M.q = M.test.items[M.test.idx]; M.qt = 0; M.input = ''; renderQuestion(); renderInput(); return; }
   let q = null;
   if (M.topicMode === 'weak' && M.rng() < REPEAT_SHARE) q = pickMistake(M.rng, M.prevQ);
   if (!q) q = makeQuestion(M.rng, M.level, chooseTopic(M.rng), M.prevQ);
@@ -1893,6 +1918,29 @@ function renderQuestion() {
     el.pre.textContent = q.pre; el.post.textContent = q.post;
   }
 }
+
+/* ---------- контрольная ---------- */
+/* весь материал выбранной темы (для «все темы» и «слабые места» это все темы предмета) по одному разу, в случайном порядке */
+function makeTest(S) {
+  const ids = (S.topic === 'all' || S.topic === 'weak') ? SUBJECTS[S.subject].topics : [S.topic];
+  const rng = mulberry32((Date.now() ^ Math.floor(Math.random() * 4294967296)) >>> 0);
+  const items = [];
+  ids.forEach(id => TEST_ITEMS[id]().forEach(it => items.push(testQuestion(rng, id, it))));
+  return { items: rshuffle(rng, items), idx: 0, total: items.length, correct: 0, wrong: 0 };
+}
+function advanceTest() {
+  M.test.idx++;
+  if (M.test.idx >= M.test.total) endMatch('done'); else nextQuestion();
+}
+function testWrong() {
+  const q = M.q;
+  noteOutcome(q, false);
+  M.run = 0; M.stats.wrong++; M.test.wrong++; M.review.add(q.full);
+  toast(`Верно: ${q.kind === 'choice' ? q.fix : q.full}`, 'bad');
+  syncBall();
+  advanceTest();
+}
+const testGrade = (t) => { const p = t.total ? t.correct / t.total : 0; return p >= 0.9 ? 5 : p >= 0.75 ? 4 : p >= 0.5 ? 3 : 2; };
 
 /* ---------- ответы игрока ---------- */
 const canInput = () => !!M && !M.over && M.phase === 'play' && !M.paused && !M.menu && M.lock <= 0 && !!M.q;
@@ -1926,6 +1974,12 @@ function onCorrect() {
   noteOutcome(q, true);
   M.run++; M.bestRun = Math.max(M.bestRun, M.run);
   M.stats.correct++; M.stats.fastest = Math.min(M.stats.fastest, M.qt);
+  if (M.test) {
+    M.test.correct++; M.me.pts = M.test.correct; floatGain('+1');
+    if (M.run % 3 === 0) playShot(); else syncBall();
+    advanceTest();
+    return;
+  }
   const shot = M.run % 3 === 0;
   const gain = 1 + (fast ? 1 : 0) + (shot ? SHOT_BONUS : 0);
   M.me.pts += gain;
@@ -1935,6 +1989,7 @@ function onCorrect() {
   checkEnd();
 }
 function onWrong() {
+  if (M.test) { testWrong(); return; }
   const q = M.q;
   noteOutcome(q, false);
   M.run = 0; M.stats.wrong++; M.review.add(q.full);
@@ -1943,6 +1998,7 @@ function onWrong() {
   syncBall();
 }
 function onWrongChoice() {
+  if (M.test) { testWrong(); return; }
   const q = M.q;
   noteOutcome(q, false);
   M.run = 0; M.stats.wrong++; M.review.add(q.full);
@@ -1963,11 +2019,15 @@ function onTimeout() {
 /* ---------- интерфейс матча ---------- */
 function setText(key, value) { if (M.cache[key] === value) return false; M.cache[key] = value; el[key].textContent = value; return true; }
 function renderHud() {
-  setText('clock', fmt(Math.max(0, MATCH_SECONDS - M.clock)));
-  const yp = teamPts('you'), fp = teamPts('foe');
+  setText('clock', fmt(Math.max(0, M.secs - M.clock)));
+  let yp = teamPts('you'), fp = teamPts('foe');
+  if (M.test) { yp = M.test.correct; fp = M.test.total - M.test.idx; }
   if (setText('youPts', yp) && yp > 0) restart(el.youPts, 'pop');
   if (setText('foePts', fp) && fp > 0) restart(el.foePts, 'pop');
-  if (M.teamSize === 2) {
+  if (M.test) {
+    setText('youSub', `ошибок ${M.test.wrong}`);
+    setText('foeSub', 'до конца');
+  } else if (M.teamSize === 2) {
     setText('youSub', `Ты ${M.me.pts} · ${M.mates[0].name} ${M.mates[0].pts}`);
     setText('foeSub', `${M.foes[0].name} ${M.foes[0].pts} · ${M.foes[1].name} ${M.foes[1].pts}`);
   } else {
@@ -1996,6 +2056,7 @@ function renderHud() {
 
 function checkEnd() {
   if (M.over) return;
+  if (M.test) { if (M.clock >= M.secs) endMatch('time'); return; }
   const yp = teamPts('you'), fp = teamPts('foe');
   if (yp >= M.target || fp >= M.target) endMatch('target');
   else if (M.clock >= MATCH_SECONDS) endMatch('time');
@@ -2012,19 +2073,25 @@ function endMatch(reason) {
 function finishMatch(reason) {
   const R = M.duel && M.duel.result;               // итог дуэли считает сервер: у обоих игроков он одинаковый
   if (R) { M.me.pts = R.you; M.foes[0].pts = R.foe; }
-  const yp = teamPts('you'), fp = teamPts('foe');
-  const outcome = R ? R.outcome : yp > fp ? 'win' : yp < fp ? 'lose' : 'draw';
+  let yp = teamPts('you'), fp = teamPts('foe');
+  let outcome = R ? R.outcome : yp > fp ? 'win' : yp < fp ? 'lose' : 'draw';
   const team = M.teamSize === 2;
-  const title = { win: 'Победа!', lose: 'Поражение', draw: 'Ничья' }[outcome];
+  let title = { win: 'Победа!', lose: 'Поражение', draw: 'Ничья' }[outcome];
   let why;
-  if (R && R.forfeit) why = R.forfeit === 'opp' ? 'Соперник вышел из матча.' : 'Ты вышел из матча.';
+  if (M.test) {
+    const T = M.test, g = testGrade(T), left = T.total - T.idx;
+    yp = T.correct; fp = T.wrong;
+    title = `Оценка: ${g}`; outcome = g >= 4 ? 'win' : g === 3 ? 'draw' : 'lose';
+    why = left === 0 ? `Весь материал пройден за ${fmt(Math.min(M.clock, M.secs))}: верно ${T.correct} из ${T.total}.`
+      : `Время вышло: отвечено ${T.idx} из ${T.total}, верно ${T.correct}. Не успел: ${left}.`;
+  } else if (R && R.forfeit) why = R.forfeit === 'opp' ? 'Соперник вышел из матча.' : 'Ты вышел из матча.';
   else if (reason === 'target') why = outcome === 'win' ? `${team ? 'Ваша команда первой набрала' : 'Ты первым набрал'} ${M.target} очков.` : `${team ? 'Соперники первыми набрали' : 'Соперник первым набрал'} ${M.target} очков.`;
   else why = outcome === 'win' ? 'Время вышло, у тебя больше очков.' : outcome === 'lose' ? 'Время вышло, у соперника больше очков.' : 'Время вышло, счёт равный.';
 
   $('#res-title').textContent = title; $('#res-title').dataset.o = outcome;
   if (R && !R.rated) why += ' В рейтинг дуэлей не пошла: слишком мало очков.';
   $('#res-reason').textContent = why;
-  $('#res-you-label').textContent = M.youLabel; $('#res-foe-label').textContent = M.foeLabel;
+  $('#res-you-label').textContent = M.youLabel; $('#res-foe-label').textContent = M.test ? 'Ошибок' : M.foeLabel;
   $('#res-you-pts').textContent = yp; $('#res-foe-pts').textContent = fp;
   const s = M.stats, attempts = s.correct + s.wrong + s.timeouts;
   $('#st-correct').textContent = s.correct;
@@ -2052,15 +2119,17 @@ function finishMatch(reason) {
   prefs.matches.push({
     id: uid(), t: Date.now(), subject: M.subject, topic: M.topicMode, level: M.level, sport: M.sport, format: M.teamSize === 2 ? '2x2' : '1x1',
     you: yp, foe: fp, outcome, correct: s.correct, wrong: s.wrong, timeouts: s.timeouts, sec: Math.round(M.clock),
-    byTopic: JSON.parse(JSON.stringify(M.byTopic)), sent: !!M.duel, online: !!M.duel
+    byTopic: JSON.parse(JSON.stringify(M.byTopic)), sent: !!(M.duel || M.test), online: !!M.duel, test: !!M.test
   });
   if (prefs.matches.length > MAX_MATCHES) prefs.matches.splice(0, prefs.matches.length - MAX_MATCHES);
-  prefs.rec.played++; if (outcome === 'win') prefs.rec.wins++;
-  prefs.rec.best[M.level] = Math.max(prefs.rec.best[M.level] || 0, M.me.pts);
+  if (!M.test) {                                    // контрольная в рекорды матчей не идёт
+    prefs.rec.played++; if (outcome === 'win') prefs.rec.wins++;
+    prefs.rec.best[M.level] = Math.max(prefs.rec.best[M.level] || 0, M.me.pts);
+  }
   savePrefs(); askPersist(); syncMenu(); syncSoon();
-  $('#btn-weak').hidden = !!M.duel || !hasWeakStuff(M.subject);
-  lastDuel = !!M.duel;
-  $('#btn-rematch').textContent = lastDuel ? 'Новая дуэль' : 'Реванш';
+  $('#btn-weak').hidden = !!M.duel || !!M.test || !hasWeakStuff(M.subject);
+  lastMode = M.duel ? 'duel' : M.test ? 'test' : 'match';
+  $('#btn-rematch').textContent = lastMode === 'duel' ? 'Новая дуэль' : lastMode === 'test' ? 'Ещё раз' : 'Реванш';
   show('result');
 }
 
@@ -2071,8 +2140,9 @@ function setPause(on) {
 
 /* ---------- события ---------- */
 $('#btn-start').addEventListener('click', startMatch);
-let lastDuel = false;
-$('#btn-rematch').addEventListener('click', () => { if (lastDuel) openDuel(); else startMatch(); });
+let lastMode = 'match';
+$('#btn-rematch').addEventListener('click', () => { if (lastMode === 'duel') openDuel(); else { pendingTest = lastMode === 'test'; startMatch(); } });
+$('#btn-test').addEventListener('click', () => { pendingTest = true; startMatch(); });
 $('#btn-weak').addEventListener('click', () => { prefs.subject = M.subject; prefs.topic = 'weak'; savePrefs(); startMatch(); });
 $('#btn-menu').addEventListener('click', () => { syncMenu(); show('menu'); });
 /* в дуэли кнопка «пауза» открывает только вопрос «выйти?»: время идёт, ответить на вопрос пока нельзя */
