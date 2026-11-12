@@ -10,7 +10,7 @@ function ok(bool $c, string $name): void { global $fail, $n; $n++; if (!$c) { $f
 
 // --- миграции
 $first = migrate(); $again = migrate();
-ok($first === ['001_init', '002_accounts'] && $again === [], 'миграции: первый запуск применяет обе, повторный ничего');
+ok($first === ['001_init', '002_accounts', '003_duels'] && $again === [], 'миграции: первый запуск применяет все, повторный ничего');
 $tmp = sys_get_temp_dir() . '/s2g-mig-' . getmypid(); mkdir($tmp);
 foreach (['001_init', '002_accounts'] as $f) copy(__DIR__ . "/../server/migrations/$f.php", "$tmp/$f.php");
 file_put_contents("$tmp/003_extra.php", '<?php return function ($db, $d) { $db->exec("CREATE TABLE IF NOT EXISTS extra_t (id INT)"); };');
@@ -133,6 +133,96 @@ ok($lb['me']['name'] === 'Ветер' && $lb['me']['rank'] === 1, 'свой ря
 [, $lb] = call('GET', '/leaderboard', null, '', ['period' => 'week']); ok(count($lb['top']) === 3, 'неделя');
 ok(!array_key_exists('id', $lb['top'][0]) && !array_key_exists('recovery_hash', $lb['top'][0]), 'в рейтинге нет служебных полей');
 [$st] = call('GET', '/leaderboard', null, '', ['subject' => 'xx']); ok($st === 400, 'плохой предмет');
+
+// --- онлайн-дуэли
+$T = (int)floor(microtime(true) * 1000); $GLOBALS['S2G_NOW_MS'] = $T;
+[$ua, $ca] = guest('2.0.0.1'); [$ub, $cb] = guest('2.0.0.2'); [$uc, $cc] = guest('2.0.0.3');
+call('POST', '/profile', ['nick' => 'Альфа'], $ca); call('POST', '/profile', ['nick' => 'Бета'], $cb);
+$setup = ['subject' => 'math', 'topic' => 'all', 'level' => 'medium', 'sport' => 'football'];
+[$st] = call('POST', '/duel/create', $setup); ok($st === 401, 'дуэль без входа = 401');
+[$st] = call('POST', '/duel/create', ['subject' => 'x', 'level' => 'medium'], $ca); ok($st === 400, 'дуэль: плохой предмет');
+[$st, $d1] = call('POST', '/duel/create', $setup, $ca);
+ok($st === 200 && $d1['status'] === 'waiting' && preg_match('/^\d{4}$/', $d1['code']) && $d1['opp'] === null && $d1['startMs'] === null, 'комната создана, ждёт соперника');
+[$st] = call('POST', '/duel/join', ['code' => $d1['code']], $ca); ok($st === 400, 'в свою комнату войти нельзя');
+[$st, $r] = call('POST', '/duel/join', ['code' => '0000'], $cb); ok($st === 404 && $r['error'] === 'room_not_found', 'нет такой комнаты = 404');
+[$st, $j1] = call('POST', '/duel/join', ['code' => ' ' . $d1['code'] . ' ', 'sport' => 'basketball'], $cb);
+ok($st === 200 && $j1['status'] === 'playing' && $j1['id'] === $d1['id'] && $j1['seed'] === $d1['seed'] && $j1['startMs'] === $T + S2G\DUEL_LEAD_MS
+    && $j1['opp']['name'] === 'Альфа' && $j1['opp']['sport'] === 'football' && $j1['sport'] === 'basketball', 'вход по коду: матч идёт, seed общий, старт через 5 с');
+[$st] = call('POST', '/duel/join', ['code' => $d1['code']], $cc); ok($st === 404, 'занятая комната недоступна третьему');
+[$st] = call('GET', '/duel/state', null, $cc, ['id' => (string)$d1['id']]); ok($st === 404, 'чужую дуэль третий не видит');
+[, $s1] = call('GET', '/duel/state', null, $ca, ['id' => (string)$d1['id']]);
+ok($s1['status'] === 'playing' && $s1['opp']['name'] === 'Бета' && $s1['opp']['sport'] === 'basketball' && $s1['seed'] === $d1['seed'], 'создатель видит соперника и тот же seed');
+$limited = false; for ($i = 0; $i < 20; $i++) { [$st] = call('POST', '/duel/join', ['code' => '1'], $cc); if ($st === 429) $limited = true; }
+ok($limited, 'подбор кодов комнат ограничен');
+
+// до старта очки не принимаются; потом растут, но не быстрее человека
+[$st, $r] = call('POST', '/duel/progress', ['id' => $d1['id'], 'pts' => 40], $ca); ok($st === 200 && $r['opp']['pts'] === 0, 'до старта очки не принимаются');
+$GLOBALS['S2G_NOW_MS'] = $T + S2G\DUEL_LEAD_MS + 30000;
+[$st, $r] = call('POST', '/duel/progress', ['id' => $d1['id'], 'pts' => 'a'], $ca); ok($st === 400, 'очки не числом отклонены');
+call('POST', '/duel/progress', ['id' => $d1['id'], 'pts' => 12], $ca);
+[, $r] = call('POST', '/duel/progress', ['id' => $d1['id'], 'pts' => 7], $cb); ok($r['opp']['pts'] === 12, 'соперник видит очки создателя');
+[, $r] = call('POST', '/duel/progress', ['id' => $d1['id'], 'pts' => 3], $ca); [, $r2] = call('POST', '/duel/progress', ['id' => $d1['id'], 'pts' => 7], $cb);
+ok($r2['opp']['pts'] === 12, 'очки не уменьшаются');
+[, $r] = call('POST', '/duel/progress', ['id' => $d1['id'], 'pts' => 12, 'fin' => true], $ca); ok($r['status'] === 'playing' && $r['opp']['fin'] === false, 'досрочное «закончил» игнорируется');
+
+// матч заканчивается по цели: итог считает сервер, дуэль попадает в рейтинг онлайн-игр
+call('POST', '/duel/progress', ['id' => $d1['id'], 'pts' => 52, 'fin' => true], $ca);
+[, $r] = call('POST', '/duel/progress', ['id' => $d1['id'], 'pts' => 20], $cb); ok($r['opp']['pts'] === 52 && $r['status'] === 'playing', 'соперник видит набранную цель');
+[, $r] = call('POST', '/duel/progress', ['id' => $d1['id'], 'pts' => 21, 'fin' => true], $cb);
+ok($r['status'] === 'done' && $r['result']['outcome'] === 'lose' && $r['result']['you'] === 21 && $r['result']['foe'] === 52 && $r['result']['rated'] === true, 'итог: у проигравшего 21:52');
+[, $r] = call('GET', '/duel/state', null, $ca, ['id' => (string)$d1['id']]); ok($r['status'] === 'done' && $r['result']['outcome'] === 'win', 'победитель видит итог');
+[, $lb] = call('GET', '/leaderboard', null, $ca, ['mode' => 'duel']);
+ok($lb['mode'] === 'duel' && count($lb['top']) === 2 && $lb['top'][0]['name'] === 'Альфа' && $lb['top'][0]['wins'] === 1 && $lb['top'][1]['wins'] === 0 && $lb['me']['rank'] === 1, 'рейтинг дуэлей: по победам');
+[, $lbBot] = call('GET', '/leaderboard', null, $ca); ok(count($lbBot['top']) === 3 && $lbBot['mode'] === 'bot', 'обычный рейтинг дуэли не учитывает');
+[, $lbb] = call('GET', '/leaderboard', null, $cb, ['mode' => 'duel']); ok($lbb['me']['rank'] === 2 && $lbb['me']['points'] === 21, 'место проигравшего в рейтинге дуэлей');
+[, $lbc] = call('GET', '/leaderboard', null, $cc, ['mode' => 'duel']); ok($lbc['me'] === null, 'у третьего игрока в рейтинге дуэлей пусто');
+
+// выход из матча = поражение, победителю засчитывается
+$GLOBALS['S2G_NOW_MS'] = $T + 100000;
+[, $d2] = call('POST', '/duel/create', $setup, $cb); call('POST', '/duel/join', ['code' => $d2['code']], $ca);
+$GLOBALS['S2G_NOW_MS'] = $T + 100000 + S2G\DUEL_LEAD_MS + 20000;
+call('POST', '/duel/progress', ['id' => $d2['id'], 'pts' => 9], $ca); call('POST', '/duel/progress', ['id' => $d2['id'], 'pts' => 14], $cb);
+[, $r] = call('POST', '/duel/progress', ['id' => $d2['id'], 'quit' => true], $ca);
+ok($r['status'] === 'done' && $r['result']['outcome'] === 'lose' && $r['result']['forfeit'] === 'me', 'вышел из матча: поражение');
+[, $r] = call('GET', '/duel/state', null, $cb, ['id' => (string)$d2['id']]); ok($r['result']['outcome'] === 'win' && $r['result']['forfeit'] === 'opp', 'соперник видит победу по выходу');
+// нет очков у победителя: дуэль не зачитывается
+$GLOBALS['S2G_NOW_MS'] = $T + 200000;
+[, $d3] = call('POST', '/duel/create', $setup, $ca); call('POST', '/duel/join', ['code' => $d3['code']], $cb);
+$GLOBALS['S2G_NOW_MS'] = $T + 200000 + S2G\DUEL_LEAD_MS + 5000;
+call('POST', '/duel/progress', ['id' => $d3['id'], 'quit' => true], $cb);
+[, $r] = call('GET', '/duel/state', null, $ca, ['id' => (string)$d3['id']]); ok($r['status'] === 'done' && $r['result']['rated'] === false, 'пустая игра в рейтинг не идёт');
+$cnt = one('SELECT COUNT(*) c FROM duel_results'); ok((int)$cnt['c'] === 4, 'в рейтинг попали две зачётные дуэли (по строке на игрока)');
+// соперник пропал: после «закончил» и тишины в 10 с итог подводится сам
+$GLOBALS['S2G_NOW_MS'] = $T + 300000;
+[, $d4] = call('POST', '/duel/create', $setup, $ca); call('POST', '/duel/join', ['code' => $d4['code']], $cb);
+$GLOBALS['S2G_NOW_MS'] = $T + 300000 + S2G\DUEL_LEAD_MS + 125000;
+call('POST', '/duel/progress', ['id' => $d4['id'], 'pts' => 30], $ca); call('POST', '/duel/progress', ['id' => $d4['id'], 'pts' => 25, 'fin' => true], $cb);
+[, $r] = call('GET', '/duel/state', null, $cb, ['id' => (string)$d4['id']]); ok($r['status'] === 'playing', 'пока соперник на связи, ждём его');
+$GLOBALS['S2G_NOW_MS'] += 11000;
+[, $r] = call('GET', '/duel/state', null, $cb, ['id' => (string)$d4['id']]); ok($r['status'] === 'done' && $r['result']['outcome'] === 'lose', 'соперник пропал: итог подведён по его последним очкам');
+// очки сверх возможного обрезаются до допустимого
+$GLOBALS['S2G_NOW_MS'] = $T + 400000;
+[, $dx] = call('POST', '/duel/create', $setup, $ca); call('POST', '/duel/join', ['code' => $dx['code']], $cb);
+$GLOBALS['S2G_NOW_MS'] = $T + 400000 + S2G\DUEL_LEAD_MS + 2000;
+[$st] = call('POST', '/duel/progress', ['id' => $dx['id'], 'pts' => 300], $ca); [, $r] = call('POST', '/duel/progress', ['id' => $dx['id'], 'pts' => 1], $cb);
+ok($st === 200 && $r['opp']['pts'] === 17, 'очки сверх возможного за 2 секунды обрезаются до 17');
+// новая комната закрывает старую
+$GLOBALS['S2G_NOW_MS'] = $T + 500000;
+[, $d5] = call('POST', '/duel/create', $setup, $ca); [, $d6] = call('POST', '/duel/create', $setup, $ca);
+$old = one('SELECT status FROM duels WHERE id = ?', [$d5['id']]); ok($old['status'] === 'cancelled', 'новая комната закрывает прежнюю ждущую');
+[$st] = call('POST', '/duel/leave', ['id' => $d6['id']], $ca); [, $r] = call('GET', '/duel/state', null, $ca, ['id' => (string)$d6['id']]);
+ok($st === 200 && $r['status'] === 'cancelled', 'отмена ожидания закрывает комнату');
+// очередь «случайный соперник»
+$q = ['subject' => 'math', 'level' => 'medium', 'sport' => 'football'];
+[, $r] = call('POST', '/duel/queue', $q, $ca); ok($r['status'] === 'queued', 'очередь: первый ждёт');
+[, $r] = call('POST', '/duel/queue', ['subject' => 'math', 'level' => 'hard', 'sport' => 'football'], $cc); ok($r['status'] === 'queued', 'очередь: другой уровень не подходит');
+[, $r] = call('POST', '/duel/queue', ['subject' => 'rus', 'level' => 'medium', 'sport' => 'football'], $cc); ok($r['status'] === 'queued', 'очередь: другой предмет не подходит');
+[, $r] = call('POST', '/duel/queue', $q, $cb);
+ok($r['status'] === 'playing' && $r['opp']['name'] === 'Альфа' && $r['topic'] === 'all', 'очередь: второй сразу получает дуэль');
+[, $r2] = call('POST', '/duel/queue', $q, $ca); ok($r2['id'] === $r['id'] && $r2['opp']['name'] === 'Бета' && $r2['seed'] === $r['seed'], 'очередь: первый при следующем опросе получает ту же дуэль');
+[, $r3] = call('POST', '/duel/queue', $q, $ca); ok($r3['status'] === 'queued', 'очередь: после получения дуэли нового поиска нет, пока не позвали снова');
+call('POST', '/duel/leave', [], $ca); $qn = one('SELECT COUNT(*) c FROM duel_queue WHERE user_id = ?', [$ua['id']]); ok((int)$qn['c'] === 0, 'выход из очереди');
+unset($GLOBALS['S2G_NOW_MS']);
 
 // --- выход
 call('POST', '/logout', [], $c1);
