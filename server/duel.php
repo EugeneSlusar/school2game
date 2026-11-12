@@ -110,6 +110,32 @@ function duelSettle(array $d): array {
     return duelRow((int)$d['id']) ?? $d;
 }
 
+/** Статистика игрока из тела запроса (только для показа на итоговом экране, на рейтинг не влияет): числа и список ошибок */
+function duelCleanStats(mixed $s): ?array {
+    if (!is_array($s)) return null;
+    $out = [];
+    foreach (['correct', 'wrong', 'timeouts', 'run'] as $k) {
+        $v = ival($s[$k] ?? 0, 0, 1000);
+        if ($v === null) return null;
+        $out[$k] = $v;
+    }
+    $f = $s['fast'] ?? null;
+    $out['fast'] = (is_int($f) || is_float($f)) && $f >= 0 && $f <= 120 ? round((float)$f, 1) : null;
+    $errors = [];
+    foreach (array_slice(is_array($s['errors'] ?? null) ? $s['errors'] : [], 0, 12) as $e) {
+        if (!is_string($e)) continue;
+        $e = trim((string)preg_replace('/[\x00-\x1F\x7F]/u', '', $e));
+        if ($e !== '') $errors[] = mb_substr($e, 0, 60);
+    }
+    $out['errors'] = $errors;
+    return $out;
+}
+function duelStatsOf(array $d, int $slot): ?array {
+    $raw = $d["p{$slot}_stat"] ?? null;
+    $v = is_string($raw) ? json_decode($raw, true) : null;
+    return is_array($v) ? $v : null;
+}
+
 function duelView(array $d, int $uid): array {
     $me = duelSlot($d, $uid); $o = 3 - $me;
     $opp = null;
@@ -123,7 +149,8 @@ function duelView(array $d, int $uid): array {
         $w = (int)$d['winner']; $f = (int)$d['forfeit'];
         $result = ['you' => (int)$d["p{$me}_pts"], 'foe' => (int)$d["p{$o}_pts"],
             'outcome' => $w === 0 ? 'draw' : ($w === $me ? 'win' : 'lose'),
-            'forfeit' => $f === 0 ? null : ($f === $me ? 'me' : 'opp'), 'rated' => (int)$d['rated'] === 1];
+            'forfeit' => $f === 0 ? null : ($f === $me ? 'me' : 'opp'), 'rated' => (int)$d['rated'] === 1,
+            'stats' => ['you' => duelStatsOf($d, $me), 'foe' => duelStatsOf($d, $o)]];
     }
     return ['id' => (int)$d['id'], 'code' => $d['code'], 'status' => $d['status'], 'subject' => $d['subject'], 'topic' => $d['topic'],
         'level' => $d['level'], 'seed' => (int)$d['seed'], 'startMs' => $d['start_ms'] === null ? null : (int)$d['start_ms'], 'serverMs' => nowMs(),
@@ -242,7 +269,7 @@ function duelState(array $req): array {
 }
 
 /**
- * Свои очки → очки соперника. Тело: id, pts, fin (матч у меня закончился), quit (вышел).
+ * Свои очки → очки соперника. Тело: id, pts, fin (матч у меня закончился), quit (вышел), stats (итоговая статистика для экрана результата).
  * Очки только растут; больше, чем можно набрать за прошедшее время, сервер не засчитывает (обрезает до допустимого).
  */
 function duelProgress(array $req): array {
@@ -266,6 +293,8 @@ function duelProgress(array $req): array {
         // «матч закончился» принимаем, только если он правда мог закончиться: цель набрана (кем-то) или вышло время
         if (!empty($b['fin']) && ($cur >= POINTS_PER_PLAYER || $oppPts >= POINTS_PER_PLAYER || $elapsed >= MATCH_SECONDS - 3)) $sets[] = "p{$slot}_fin = 1";
         if (!empty($b['quit'])) { $sets[] = 'forfeit = ?'; $args[] = $slot; }
+        $stat = (!empty($b['fin']) || !empty($b['quit'])) ? duelCleanStats($b['stats'] ?? null) : null;
+        if ($stat !== null) { $sets[] = "p{$slot}_stat = ?"; $args[] = json_encode($stat, JSON_UNESCAPED_UNICODE); }
     }
     $args[] = $d['id'];
     q('UPDATE duels SET ' . implode(', ', $sets) . " WHERE id = ? AND status = 'playing'" . (!empty($b['quit']) ? ' AND forfeit = 0' : ''), $args);

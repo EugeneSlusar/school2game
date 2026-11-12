@@ -1,6 +1,6 @@
 {
   "name": "school2game",
-  "version": "1.6.0",
+  "version": "1.7.0",
   "description": "school2game: учись с игровым вайбом. Соревновательная игра на скорость для 5 класса",
   "scripts": {
     "sync": "cap sync android",

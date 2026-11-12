@@ -17,7 +17,7 @@ async function player(browser, name) {
   return { ctx, page, name };
 }
 // отвечает на примеры: умножение/деление «a × b =», «a ÷ b =»
-async function answerLoop(p, ms, maxSec, tag) {
+async function answerLoop(p, ms, maxSec, tag, wrongEvery = 0) {
   const t0 = Date.now(); let n = 0;
   while (Date.now() - t0 < maxSec * 1000) {
     const st = await p.page.evaluate(() => {
@@ -29,7 +29,9 @@ async function answerLoop(p, ms, maxSec, tag) {
     if (st.res) return n;
     const m = /^(\d+)\s*([×÷])\s*(\d+)\s*=$/.exec(st.pre.trim());
     if (m && !st.keys) {
-      const a = +m[1], b = +m[3], ans = m[2] === '×' ? a * b : a / b;
+      const a = +m[1], b = +m[3];
+      let ans = m[2] === '×' ? a * b : a / b;
+      if (wrongEvery && (n + 1) % wrongEvery === 0) ans = ans % 10 === 0 ? ans + 1 : ans - (ans % 10) + ((ans % 10) + 1) % 10;   // намеренная ошибка
       for (const ch of String(ans)) await p.page.click(`#keypad button[data-k="${ch}"]`);
       n++;
     }
@@ -66,7 +68,7 @@ async function answerLoop(p, ms, maxSec, tag) {
   const foe = await Promise.all([A, B].map(p => p.page.textContent('#foe-label')));
   log('соперники:', foe.join(' / '));
   // играют: A быстро, B медленнее
-  const [na, nb] = await Promise.all([answerLoop(A, 700, 100, 'A'), answerLoop(B, 1700, 100, 'B')]);
+  const [na, nb] = await Promise.all([answerLoop(A, 700, 100, 'A', 5), answerLoop(B, 1700, 100, 'B', 3)]);
   log('ответов A/B:', na, nb);
   for (const p of [A, B]) await p.page.waitForFunction(() => !document.querySelector('#screen-result').hidden, null, { timeout: 20000 });
   const res = await Promise.all([A, B].map(p => p.page.evaluate(() => ({
@@ -74,7 +76,14 @@ async function answerLoop(p, ms, maxSec, tag) {
     why: document.querySelector('#res-reason').textContent, rematch: document.querySelector('#btn-rematch').textContent
   }))));
   log('итог A:', JSON.stringify(res[0])); log('итог B:', JSON.stringify(res[1]));
-  await A.page.screenshot({ path: (process.env.SHOTS || '/tmp') + '/duel-result-A.png' });
+  for (const p of [A, B]) {
+    const cmp = await p.page.$$eval('#cmp-rows .cmp-row', r => r.map(x => Array.from(x.children).map(c => c.textContent).join(' | ')));
+    const foeErrs = await p.page.$$eval('#res-foe-errs .chip', r => r.map(x => x.textContent));
+    const myErrs = await p.page.$$eval('#review .chip', r => r.map(x => x.textContent));
+    log(p.name, 'сравнение:', JSON.stringify(cmp), '\n   ошибки соперника:', JSON.stringify(foeErrs), 'мои:', JSON.stringify(myErrs));
+  }
+  await A.page.screenshot({ path: (process.env.SHOTS || '/tmp') + '/duel-result-A.png', fullPage: true });
+  await B.page.screenshot({ path: (process.env.SHOTS || '/tmp') + '/duel-result-B.png', fullPage: true });
   // рейтинг онлайн-дуэлей
   await A.page.click('#btn-menu'); await A.page.click('#btn-rating');
   await A.page.click('#rt-mode [data-v="duel"]');
