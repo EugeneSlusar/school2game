@@ -7,6 +7,7 @@ require_once __DIR__ . '/schema.php';
 require_once __DIR__ . '/validate.php';
 require_once __DIR__ . '/profanity.php';
 require_once __DIR__ . '/duel.php';
+require_once __DIR__ . '/progress.php';
 
 const COOKIE = 's2g_sess';
 const CODE_ALPHABET = 'ABCDEFGHJKMNPQRSTUVWXYZ23456789';
@@ -96,7 +97,7 @@ function authGuest(array $req): array {
     $now = time();
     $code = newRecoveryCode();
     q('INSERT INTO users (nick, nick_key, avatar, recovery_hash, created_at, last_seen) VALUES (NULL, NULL, ?, ?, ?, ?)',
-        [AVATARS[array_rand(AVATARS)], hashToken((string)normalizeCode($code)), $now, $now]);
+        [AVATARS[array_rand(array_slice(AVATARS, 0, FREE_AVATARS))], hashToken((string)normalizeCode($code)), $now, $now]);
     $uid = (int)db()->lastInsertId();
     $user = one('SELECT * FROM users WHERE id = ?', [$uid]);
     return [200, ['user' => userView($user), 'recoveryCode' => $code], startSession($uid)];
@@ -146,6 +147,7 @@ function profile(array $req): array {
     }
     if (isset($b['avatar'])) {
         if (!in_array($b['avatar'], AVATARS, true)) fail(400, 'bad_avatar');
+        if ($b['avatar'] !== $user['avatar'] && !avatarUnlocked((int)$user['id'], $b['avatar'])) fail(403, 'avatar_locked');
         $avatar = $b['avatar'];
     }
     try {
@@ -183,6 +185,21 @@ function sync(array $req): array {
         $row['user_id'] = $uid; $row['created_at'] = $now;
         if (insertIgnore('results', $row)) { $accepted[] = $id; continue; }
         $owner = one('SELECT user_id FROM results WHERE id = ?', [$id]);
+        if ($owner && (int)$owner['user_id'] === $uid) $duplicate[] = $id;
+        else $rejected[] = ['id' => $id, 'reason' => 'id_taken'];
+    }
+
+    // результаты «Контрольной»: идут в прогресс (опыт, задания, значки), в рейтинг не попадают
+    $tests = $b['tests'] ?? [];
+    if (!is_array($tests)) fail(400, 'bad_tests');
+    if (count($tests) > MAX_BATCH) fail(413, 'too_many_matches');
+    foreach ($tests as $m) {
+        [$row, $why] = checkTest($m, $now);
+        $id = is_array($m) && is_string($m['id'] ?? null) ? $m['id'] : '';
+        if ($row === null) { $rejected[] = ['id' => $id, 'reason' => $why]; continue; }
+        $row['user_id'] = $uid; $row['created_at'] = $now;
+        if (insertIgnore('test_results', $row)) { $accepted[] = $id; continue; }
+        $owner = one('SELECT user_id FROM test_results WHERE id = ?', [$id]);
         if ($owner && (int)$owner['user_id'] === $uid) $duplicate[] = $id;
         else $rejected[] = ['id' => $id, 'reason' => 'id_taken'];
     }
@@ -262,6 +279,7 @@ function routes(): array {
         'POST /profile' => 'S2G\profile',
         'POST /sync' => 'S2G\sync',
         'GET /leaderboard' => 'S2G\leaderboard',
+        'GET /progress' => 'S2G\progress',
         'POST /duel/create' => 'S2G\duelCreate',
         'POST /duel/join' => 'S2G\duelJoin',
         'POST /duel/queue' => 'S2G\duelQueue',

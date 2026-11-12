@@ -11,6 +11,7 @@ const MATCH_SECONDS = 120;
 const MAX_GAIN = 5;          // ответ 1 + быстрый 1 + бросок 3
 const MIN_ANSWER_SEC = 0.7;  // быстрее человек не отвечает
 const MIN_MATCH_SEC = 8;
+const TEST_SECONDS = 300;    // «Контрольная»
 const WINDOW = 30;
 
 function allTopics(): array { return array_merge(...array_values(SUBJECT_TOPICS)); }
@@ -85,6 +86,34 @@ function checkMatch(mixed $m, ?int $now = null): array {
         'outcome' => $outcome, 'correct' => $correct, 'wrong' => $wrong, 'timeouts' => $timeouts, 'sec' => $sec,
         'by_topic' => json_encode($clean, JSON_UNESCAPED_UNICODE),
     ], null];
+}
+
+/**
+ * Проверка результата «Контрольной» (5 минут, весь материал темы). Идёт только в прогресс игрока, в рейтинг не попадает.
+ * Возвращает [чистая запись, null] или [null, причина].
+ */
+function checkTest(mixed $m, ?int $now = null): array {
+    $now ??= time();
+    if (!is_array($m)) return [null, 'bad_format'];
+    $id = $m['id'] ?? null;
+    if (!is_string($id) || !preg_match('/^[A-Za-z0-9_-]{1,64}$/', $id)) return [null, 'bad_id'];
+    $subject = $m['subject'] ?? null;
+    if (!is_string($subject) || !isset(SUBJECT_TOPICS[$subject])) return [null, 'bad_subject'];
+    $topic = $m['topic'] ?? 'all';
+    if (!is_string($topic) || !($topic === 'all' || $topic === 'weak' || in_array($topic, SUBJECT_TOPICS[$subject], true))) return [null, 'bad_topic'];
+    $total = ival($m['total'] ?? null, 1, 400); $correct = ival($m['correct'] ?? null, 0, 400);
+    $wrong = ival($m['wrong'] ?? null, 0, 400); $sec = ival($m['sec'] ?? null, 0, 1000);
+    if (in_array(null, [$total, $correct, $wrong, $sec], true)) return [null, 'bad_number'];
+    $t = ival($m['t'] ?? null, 1, PHP_INT_MAX);
+    if ($t === null) return [null, 'bad_time'];
+    $playedAt = intdiv($t, 1000);
+    if ($playedAt > $now + 3600 || $playedAt < $now - 400 * 86400) return [null, 'bad_time'];
+    $answered = $correct + $wrong;
+    if ($answered > $total) return [null, 'too_many_answers'];
+    if ($sec < MIN_MATCH_SEC || $sec > TEST_SECONDS + 5) return [null, 'bad_duration'];
+    if ($answered > $sec / MIN_ANSWER_SEC + 3) return [null, 'too_fast'];
+    if ($answered < $total && $sec < TEST_SECONDS - 5) return [null, 'ended_early'];   // кончается, когда пройден весь материал или вышло время
+    return [['id' => $id, 'played_at' => min($playedAt, $now), 'subject' => $subject, 'topic' => $topic, 'total' => $total, 'correct' => $correct, 'wrong' => $wrong, 'sec' => $sec], null];
 }
 
 /** Статистика темы: recent = [[0|1, секунды], ...] не длиннее WINDOW */

@@ -10,6 +10,13 @@ const sleep = (ms) => new Promise(r => setTimeout(r, ms));
 
 const AV = ['⚽', '🏀', '🏆', '🦊', '🐼', '🐯'];
 const CODE = 'ABCD-EFGH-JKMN';
+const PROG = {
+  day: 20000, xp: 100, level: 2, title: 'Ученик', levelXp: 80, nextXp: 240,
+  streak: { current: 3, best: 3, playedToday: false, freezes: 1 },
+  quests: { items: [{ id: 'w1', text: 'Выиграй матч', have: 0, need: 1, xp: 30, done: false }, { id: 'c20', text: 'Реши 20 примеров верно', have: 20, need: 20, xp: 25, done: true }, { id: 'm2', text: 'Сыграй 2 матча', have: 1, need: 2, xp: 25, done: false }], done: 1, allDone: false, bonus: 30 },
+  badges: [{ id: 'first', icon: '🏁', name: 'Первый матч', how: 'Сыграй первый матч', have: 1, need: 1, unlocked: true }, { id: 'c100', icon: '🎯', name: '100 верных', how: '100 верных ответов', have: 40, need: 100, unlocked: false }],
+  avatars: AV.map((a, i) => i < 4 ? { a, unlocked: true } : { a, unlocked: false, need: 'Уровень 3' })
+};
 function makeServer(opts) {
   const st = { cookie: !!opts.cookie, user: { id: 7, nick: null, name: 'Неопознанный №7', avatar: '🐼', needsNick: true }, calls: [], synced: [], guests: 0, recovers: 0, meFails: 0 };
   const handler = (method, path, body) => {
@@ -17,6 +24,7 @@ function makeServer(opts) {
     if (path === 'config') return [200, { accounts: true, avatars: AV }];
     if (path === 'me' && opts.failMe && st.meFails++ < opts.failMe) return [500, { error: 'boom' }];
     if (path === 'me') return st.cookie ? [200, { user: st.user }] : [401, { error: 'not_logged_in' }];
+    if (path === 'progress') return opts.progress ? [200, PROG] : [404, { error: 'not_found' }];
     if (path === 'auth/guest') { st.guests++; st.cookie = true; return [200, { user: st.user, recoveryCode: CODE }]; }
     if (path === 'auth/recover') {
       st.recovers++;
@@ -153,6 +161,22 @@ const seed = { 'tablichny-sport-v1': JSON.stringify({ guestId: 'g1', savedAt: 1,
   ok(t.$('#avb-name').textContent === 'Гость', 'при ошибке сервера аватар пока «Гость»');
   t.click('#btn-avatar'); await sleep(100);
   ok(!t.$('#pf-user').hidden && t.$('#pf-offline').hidden, 'профиль сам переподключается при открытии');
+
+  // 10. прогресс: карточка в меню, экран наград, замки на аватарах
+  t = await boot({ cookie: true, progress: true }, { 'school2game-recovery': CODE });
+  ok(!t.$('#btn-hero').hidden && t.$('#hero-lv').textContent === '2' && t.$('#hero-title').textContent === 'Ученик' && t.$('#hero-streak').textContent === '3', 'карточка в меню: уровень, звание, серия');
+  ok(/Сыграй сегодня/.test(t.$('#hero-sub').textContent) && t.$('#hero-bar').style.width === '13%', 'в карточке подсказка про серию и полоса опыта');
+  t.click('#btn-hero'); await sleep(60);
+  ok(!t.$('#screen-rewards').hidden && t.$$('#rw-body .rcard').length === 5 && t.$$('#rw-body .quest').length === 3 && t.$$('#rw-body .quest.done').length === 1, 'экран наград: уровень, серия, задания, значки, аватары');
+  ok(t.$$('#rw-body .badge').length === 2 && t.$$('#rw-body .badge.lock').length === 1 && /40 из 100/.test(t.$('#rw-body .badge.lock').textContent), 'значки: один открыт, закрытый показывает прогресс');
+  t.click('#btn-rewards-back'); ok(!t.$('#screen-menu').hidden, 'из наград можно вернуться в меню');
+  t.click('#btn-avatar'); await sleep(80);
+  ok(t.$$('#pf-avs button.lock').length === 1 && t.$$('#pf-avs button').length === 6, 'в профиле закрыт аватар с замком (текущий аватар остаётся доступным)');
+  t.$('#pf-avs button.lock').dispatchEvent(new t.w.MouseEvent('click', { bubbles: true }));
+  ok(/Уровень 3/.test(t.$('#pf-err').textContent), 'нажатие на закрытый аватар объясняет, как его открыть');
+  ok(t.errs.length === 0, 'прогресс без ошибок JS: ' + t.errs);
+  t = await boot({ cookie: true }, { 'school2game-recovery': CODE });
+  ok(t.$('#btn-hero').hidden, 'без прогресса с сервера карточка скрыта, игра работает');
 
   console.log(fails ? `\nПровалено: ${fails} из ${n}` : `UI: все ${n} проверок пройдены`);
   process.exit(fails ? 1 : 0);
