@@ -265,6 +265,14 @@ button:focus-visible,summary:focus-visible{outline:3px solid var(--you);outline-
 .stats div{display:flex;justify-content:space-between;align-items:baseline;gap:10px;padding:8px 2px;border-bottom:2px dashed var(--shade)}
 .stats dt{font-size:18px}
 .stats dd{margin:0;font:400 20px/1 var(--font-display);font-variant-numeric:tabular-nums;white-space:nowrap}
+.cmp{display:grid;gap:2px;padding:8px 12px;background:var(--card);border:2px solid var(--ink);border-radius:14px}
+.cmp-head,.cmp-row{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1.25fr) minmax(0,1fr);align-items:baseline;gap:8px;text-align:center}
+.cmp-head{padding-bottom:6px}
+.cmp-head b{font:400 16px/1.1 var(--font-display);overflow-wrap:anywhere}
+.cmp-row{padding:7px 0;border-top:2px dashed var(--shade)}
+.cmp-row span:nth-child(2){font-size:16px;line-height:1.1;color:var(--ink-soft)}
+.cmp-row .v{font:400 21px/1 var(--font-display);font-variant-numeric:tabular-nums;white-space:nowrap}
+.cmp-row .v.best{color:var(--good)}
 .review h3{margin:0 0 8px;font:400 13px/1 var(--font-display);letter-spacing:.09em;text-transform:uppercase;color:var(--ink-soft)}
 .review p{margin:0;color:var(--ink-soft)}
 .coachline{margin:0;font-size:18px;text-align:center}
@@ -555,7 +563,11 @@ a.btn{display:flex;align-items:center;justify-content:center;box-sizing:border-b
         <div class="pts" id="res-foe-pts">0</div>
       </div>
     </div>
-    <dl class="stats">
+    <div class="cmp" id="res-cmp" hidden>
+      <div class="cmp-head"><b id="cmp-you">Ты</b><span></span><b id="cmp-foe">Соперник</b></div>
+      <div id="cmp-rows"></div>
+    </div>
+    <dl class="stats" id="res-solo">
       <div><dt>Верных ответов</dt><dd id="st-correct">0</dd></div>
       <div><dt>Точность</dt><dd id="st-acc">—</dd></div>
       <div><dt>Лучшая серия</dt><dd id="st-run">0</dd></div>
@@ -567,8 +579,12 @@ a.btn{display:flex;align-items:center;justify-content:center;box-sizing:border-b
     </div>
     <p class="coachline" id="res-coach"></p>
     <div class="review">
-      <h3>Ошибки для повторения</h3>
+      <h3 id="res-err-h">Ошибки для повторения</h3>
       <div class="chips" id="review"></div>
+    </div>
+    <div class="review" id="res-foe-box" hidden>
+      <h3 id="res-foe-h">Ошибки соперника</h3>
+      <div class="chips" id="res-foe-errs"></div>
     </div>
     <div class="actions">
       <button type="button" class="btn primary" id="btn-rematch">Реванш</button>
@@ -1629,6 +1645,43 @@ $('#du-share').addEventListener('click', async () => {
   $('#du-wait-text').textContent = ok ? 'Ссылка скопирована. Отправь её другу.' : `Скажи другу код ${du.code}.`;
 });
 
+/* моя итоговая статистика: уходит на сервер, чтобы соперник увидел её на экране результата */
+function duelStatsOut() {
+  const s = M.stats;
+  return { correct: s.correct, wrong: s.wrong, timeouts: s.timeouts, run: M.bestRun, fast: isFinite(s.fastest) ? Math.round(s.fastest * 10) / 10 : null, errors: Array.from(M.review).slice(0, 12) };
+}
+/* экран результата дуэли: счёт, кто выиграл, ответы и ошибки обоих игроков */
+function renderDuelResult(R, yp, fp) {
+  const mine = duelStatsOut(), foe = R && R.stats ? R.stats.foe : null, name = M.foes[0].name;
+  const tot = (x) => x.correct + x.wrong + x.timeouts;
+  const acc = (x) => tot(x) ? Math.round(x.correct / tot(x) * 100) : null;
+  $('#cmp-you').textContent = 'Ты'; $('#cmp-foe').textContent = name;
+  const rows = [
+    ['Очки', yp, fp, 'hi'],
+    ['Ответов', tot(mine), foe ? tot(foe) : null, 'hi'],
+    ['Верных', mine.correct, foe ? foe.correct : null, 'hi'],
+    ['Ошибок', mine.wrong + mine.timeouts, foe ? foe.wrong + foe.timeouts : null, 'lo'],
+    ['Точность', acc(mine), foe ? acc(foe) : null, 'hi', ' %'],
+    ['Лучшая серия', mine.run, foe ? foe.run : null, 'hi'],
+    ['Быстрейший ответ', mine.fast, foe ? foe.fast : null, 'lo', ' с']
+  ];
+  const box = $('#cmp-rows'); box.textContent = '';
+  rows.forEach(([label, a, b, dir, unit]) => {
+    const text = (v) => v == null ? '—' : (unit === ' с' ? dec(v) : String(v)) + (unit || '');
+    const better = a != null && b != null && a !== b ? ((dir === 'hi') === (a > b) ? 'a' : 'b') : '';
+    const row = h('div', 'cmp-row');
+    row.appendChild(h('span', 'v' + (better === 'a' ? ' best' : ''), text(a)));
+    row.appendChild(h('span', null, label));
+    row.appendChild(h('span', 'v' + (better === 'b' ? ' best' : ''), text(b)));
+    box.appendChild(row);
+  });
+  $('#res-foe-h').textContent = `Ошибки: ${name}`;
+  const fb = $('#res-foe-errs'); fb.textContent = '';
+  if (!foe) fb.appendChild(h('p', null, 'Данных соперника нет: он вышел раньше.'));
+  else if (!foe.errors.length) fb.appendChild(h('p', null, 'Ошибок нет. Чистая игра!'));
+  else foe.errors.forEach(t => fb.appendChild(h('span', 'chip', t)));
+}
+
 /* во время матча: раз в секунду свои очки → очки соперника */
 async function duelPulse() {
   const D = M && M.duel;
@@ -1666,9 +1719,13 @@ async function settleDuel(reason) {
   clearInterval(D.timer);
   toast('Считаем результат…', 'you');
   const t0 = Date.now();
+  let first = true;
   while (!D.result && Date.now() - t0 < 8000) {
     try {
-      const d = await api('POST', 'duel/progress', { id: D.id, pts: M.me.pts, fin: true });
+      const body = { id: D.id, pts: M.me.pts, fin: true, stats: duelStatsOut() };
+      if (reason === 'quit' && first) body.quit = true;                 // вышел из матча: поражение, но итоговый экран всё равно покажем
+      first = false;
+      const d = await api('POST', 'duel/progress', body);
       if (d.opp) M.foes[0].pts = Math.max(M.foes[0].pts, d.opp.pts);
       if (d.status === 'done' && d.result) D.result = d.result;
       else if (d.status === 'cancelled') break;
@@ -2074,6 +2131,7 @@ function finishMatch(reason) {
     why = left === 0 ? `Весь материал пройден за ${fmt(Math.min(M.clock, M.secs))}: верно ${T.correct} из ${T.total}.`
       : `Время вышло: отвечено ${T.idx} из ${T.total}, верно ${T.correct}. Не успел: ${left}.`;
   } else if (R && R.forfeit) why = R.forfeit === 'opp' ? 'Соперник вышел из матча.' : 'Ты вышел из матча.';
+  else if (reason === 'quit') { why = 'Ты вышел из матча.'; outcome = 'lose'; title = 'Поражение'; }
   else if (reason === 'target') why = outcome === 'win' ? `${team ? 'Ваша команда первой набрала' : 'Ты первым набрал'} ${M.target} очков.` : `${team ? 'Соперники первыми набрали' : 'Соперник первым набрал'} ${M.target} очков.`;
   else why = outcome === 'win' ? 'Время вышло, у тебя больше очков.' : outcome === 'lose' ? 'Время вышло, у соперника больше очков.' : 'Время вышло, счёт равный.';
 
@@ -2100,6 +2158,10 @@ function finishMatch(reason) {
   const weakNow = ids.filter(id => M.byTopic[id].n >= 3 && M.byTopic[id].ok / M.byTopic[id].n < 0.7).map(id => TOPICS[id].name);
   $('#res-coach').textContent = weakNow.length ? `Подтяни: ${weakNow.join(', ')}.` : (M.review.size ? 'Повтори ошибки ниже и сыграй ещё.' : '');
 
+  const isDuel = !!M.duel;
+  $('#res-solo').hidden = isDuel; $('#res-cmp').hidden = !isDuel; $('#res-foe-box').hidden = !isDuel;
+  $('#res-err-h').textContent = isDuel ? 'Твои ошибки' : 'Ошибки для повторения';
+  if (isDuel) renderDuelResult(R, yp, fp);
   const box = $('#review'); box.textContent = '';
   const list = Array.from(M.review).slice(0, 12);
   if (list.length) list.forEach(t => box.appendChild(h('span', 'chip', t)));
@@ -2140,11 +2202,8 @@ const togglePause = () => { if (M && M.duel) duelMenu(!M.menu); else setPause(!(
 $('#btn-pause').addEventListener('click', () => { if (M && M.duel) duelMenu(true); else setPause(true); });
 $('#btn-resume').addEventListener('click', () => { if (M && M.duel) duelMenu(false); else setPause(false); });
 $('#btn-quit').addEventListener('click', () => {
-  if (M) {
-    if (M.duel && !M.over) duelApi('POST', 'duel/progress', { id: M.duel.id, quit: true }).catch(() => {});
-    if (M.duel) clearInterval(M.duel.timer);
-    M.over = true; cancelAnimationFrame(M.raf);
-  }
+  if (M && M.duel && !M.over) { duelMenu(false); endMatch('quit'); return; }   // из дуэли не в меню, а на экран результата
+  if (M) { M.over = true; cancelAnimationFrame(M.raf); }
   savePrefs(); syncMenu(); show('menu');
 });
 

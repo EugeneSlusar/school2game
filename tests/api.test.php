@@ -10,7 +10,7 @@ function ok(bool $c, string $name): void { global $fail, $n; $n++; if (!$c) { $f
 
 // --- миграции
 $first = migrate(); $again = migrate();
-ok($first === ['001_init', '002_accounts', '003_duels'] && $again === [], 'миграции: первый запуск применяет все, повторный ничего');
+ok($first === ['001_init', '002_accounts', '003_duels', '004_duel_stats'] && $again === [], 'миграции: первый запуск применяет все, повторный ничего');
 $tmp = sys_get_temp_dir() . '/s2g-mig-' . getmypid(); mkdir($tmp);
 foreach (['001_init', '002_accounts'] as $f) copy(__DIR__ . "/../server/migrations/$f.php", "$tmp/$f.php");
 file_put_contents("$tmp/003_extra.php", '<?php return function ($db, $d) { $db->exec("CREATE TABLE IF NOT EXISTS extra_t (id INT)"); };');
@@ -168,9 +168,14 @@ ok($r2['opp']['pts'] === 12, 'очки не уменьшаются');
 // матч заканчивается по цели: итог считает сервер, дуэль попадает в рейтинг онлайн-игр
 call('POST', '/duel/progress', ['id' => $d1['id'], 'pts' => 52, 'fin' => true], $ca);
 [, $r] = call('POST', '/duel/progress', ['id' => $d1['id'], 'pts' => 20], $cb); ok($r['opp']['pts'] === 52 && $r['status'] === 'playing', 'соперник видит набранную цель');
-[, $r] = call('POST', '/duel/progress', ['id' => $d1['id'], 'pts' => 21, 'fin' => true], $cb);
+$statB = ['correct' => 9, 'wrong' => 3, 'timeouts' => 1, 'run' => 4, 'fast' => 1.46, 'errors' => ["7 × 8 = 56\x07", 'ап_льсин', str_repeat('я', 90), 5, '']];
+[, $r] = call('POST', '/duel/progress', ['id' => $d1['id'], 'pts' => 21, 'fin' => true, 'stats' => $statB], $cb);
 ok($r['status'] === 'done' && $r['result']['outcome'] === 'lose' && $r['result']['you'] === 21 && $r['result']['foe'] === 52 && $r['result']['rated'] === true, 'итог: у проигравшего 21:52');
 [, $r] = call('GET', '/duel/state', null, $ca, ['id' => (string)$d1['id']]); ok($r['status'] === 'done' && $r['result']['outcome'] === 'win', 'победитель видит итог');
+$fs = $r['result']['stats']['foe'] ?? null;
+ok($fs !== null && $fs['correct'] === 9 && $fs['wrong'] === 3 && $fs['run'] === 4 && $fs['fast'] === 1.5 && count($fs['errors']) === 3 && $fs['errors'][0] === '7 × 8 = 56' && mb_strlen($fs['errors'][2]) === 60, 'статистика соперника доходит до победителя, лишнее вычищено');
+ok($r['result']['stats']['you'] === null, 'у того, кто статистику не слал, её нет');
+[, $rb] = call('GET', '/duel/state', null, $cb, ['id' => (string)$d1['id']]); ok($rb['result']['stats']['you']['correct'] === 9, 'свою статистику игрок тоже получает');
 [, $lb] = call('GET', '/leaderboard', null, $ca, ['mode' => 'duel']);
 ok($lb['mode'] === 'duel' && count($lb['top']) === 2 && $lb['top'][0]['name'] === 'Альфа' && $lb['top'][0]['wins'] === 1 && $lb['top'][1]['wins'] === 0 && $lb['me']['rank'] === 1, 'рейтинг дуэлей: по победам');
 [, $lbBot] = call('GET', '/leaderboard', null, $ca); ok(count($lbBot['top']) === 3 && $lbBot['mode'] === 'bot', 'обычный рейтинг дуэли не учитывает');
