@@ -1,8 +1,8 @@
 name: Android APK
 
+# Автозапуск на push отключён: Android на паузе, сборка не проверена и падала письмами на почту.
+# Запускать вручную: GitHub → Actions → Android APK → Run workflow. Чтобы вернуть автосборку, верни блок push.
 on:
-  push:
-    branches: [main]
   workflow_dispatch:
 
 jobs:
