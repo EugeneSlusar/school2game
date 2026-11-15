@@ -62,7 +62,7 @@ function userView(array $u): array {
     return ['id' => (int)$u['id'], 'nick' => $u['nick'], 'name' => displayName($u), 'avatar' => $u['avatar'], 'frame' => $u['frame'] ?? '', 'needsNick' => $u['nick'] === null];
 }
 function sessionUser(array $req): ?array {
-    $tok = $req['cookie'] ?? '';
+    $tok = ($req['cookie'] ?? '') !== '' ? $req['cookie'] : ($req['token'] ?? '');   // сайт: cookie, приложение: заголовок X-S2G-Token
     if (!is_string($tok) || !preg_match('/^[a-f0-9]{64}$/', $tok)) return null;
     $row = one('SELECT u.* FROM sessions s JOIN users u ON u.id = s.user_id WHERE s.token_hash = ? AND s.expires_at > ?', [hashToken($tok), time()]);
     if ($row) q('UPDATE users SET last_seen = ? WHERE id = ?', [time(), $row['id']]);
@@ -90,6 +90,17 @@ function startSession(int $uid): array {
     return ['value' => $tok, 'expires' => $exp];
 }
 
+/** Приложению (запрос с native: true) токен сессии отдаём в ответе: cookie другого сайта его браузерный движок не хранит. Сайту токен не нужен. */
+function nativeToken(array $req, array $sess): array { return !empty($req['body']['native']) ? ['token' => $sess['value']] : []; }
+
+/** Заголовки CORS для приложения: разрешены только перечисленные источники (по умолчанию адреса обёртки Capacitor) */
+function corsHeaders(string $origin): array {
+    $allowed = array_filter(array_map('trim', explode(',', env('CORS_ORIGINS', 'https://localhost,capacitor://localhost'))));
+    if ($origin === '' || !in_array($origin, $allowed, true)) return [];
+    return ['Access-Control-Allow-Origin' => $origin, 'Vary' => 'Origin', 'Access-Control-Allow-Methods' => 'GET, POST, OPTIONS',
+        'Access-Control-Allow-Headers' => 'Content-Type, X-S2G-Token', 'Access-Control-Max-Age' => '86400'];
+}
+
 /** Новый «неопознанный» игрок: случайный аватар, без ника. Возвращает пользователя, код (виден один раз) и сессию. */
 function authGuest(array $req): array {
     if (!rateLimit('guest:' . ipKey($req), GUEST_PER_DAY, 86400)) fail(429, 'too_many_requests');
@@ -101,7 +112,8 @@ function authGuest(array $req): array {
         [AVATARS[array_rand(array_slice(AVATARS, 0, FREE_AVATARS))], hashToken((string)normalizeCode($code)), $now, $now]);
     $uid = (int)db()->lastInsertId();
     $user = one('SELECT * FROM users WHERE id = ?', [$uid]);
-    return [200, ['user' => userView($user), 'recoveryCode' => $code], startSession($uid)];
+    $sess = startSession($uid);
+    return [200, ['user' => userView($user), 'recoveryCode' => $code] + nativeToken($req, $sess), $sess];
 }
 
 /** Вход по коду восстановления (другое устройство, потеря cookie) */
@@ -111,7 +123,8 @@ function authRecover(array $req): array {
     $code = normalizeCode($req['body']['code'] ?? null);
     $user = $code === null ? null : one('SELECT * FROM users WHERE recovery_hash = ?', [hashToken($code)]);
     if (!$user) { rateHit($rk, 600); fail($code === null ? 400 : 404, 'bad_code'); }
-    return [200, ['user' => userView($user)], startSession((int)$user['id'])];
+    $sess = startSession((int)$user['id']);
+    return [200, ['user' => userView($user)] + nativeToken($req, $sess), $sess];
 }
 
 /** Новый код вместо старого (старый перестаёт работать) */
@@ -129,8 +142,18 @@ function health(array $req): array {
 function me(array $req): array { return [200, ['user' => userView(requireUser($req))]]; }
 
 function logout(array $req): array {
-    $tok = $req['cookie'] ?? '';
+    $tok = ($req['cookie'] ?? '') !== '' ? $req['cookie'] : ($req['token'] ?? '');
     if (is_string($tok) && $tok !== '') q('DELETE FROM sessions WHERE token_hash = ?', [hashToken($tok)]);
+    return [200, ['ok' => true], ['value' => '', 'expires' => 1]];
+}
+
+/** Полное удаление профиля и всех его данных (по просьбе игрока или родителя): сессии, результаты, прогресс, лига, очередь */
+function deleteAccount(array $req): array {
+    $user = requireUser($req); $uid = (int)$user['id'];
+    if (empty($req['body']['confirm'])) fail(400, 'confirm_required');
+    q("UPDATE duels SET status = 'cancelled' WHERE status IN ('waiting', 'playing') AND (p1 = ? OR p2 = ?)", [$uid, $uid]);
+    foreach (['sessions', 'guests', 'results', 'topic_stats', 'test_results', 'duel_results', 'league_members', 'duel_queue'] as $table) q("DELETE FROM $table WHERE user_id = ?", [$uid]);
+    q('DELETE FROM users WHERE id = ?', [$uid]);
     return [200, ['ok' => true], ['value' => '', 'expires' => 1]];
 }
 
@@ -283,6 +306,7 @@ function routes(): array {
         'GET /me' => 'S2G\me',
         'POST /logout' => 'S2G\logout',
         'POST /profile' => 'S2G\profile',
+        'POST /account/delete' => 'S2G\deleteAccount',
         'POST /sync' => 'S2G\sync',
         'GET /leaderboard' => 'S2G\leaderboard',
         'GET /progress' => 'S2G\progress',
@@ -322,6 +346,8 @@ function routeFromPath(string $path): string {
 }
 
 function run(): void {
+    foreach (corsHeaders($_SERVER['HTTP_ORIGIN'] ?? '') as $k => $v) header("$k: $v");
+    if (($_SERVER['REQUEST_METHOD'] ?? '') === 'OPTIONS') { http_response_code(204); header('Cache-Control: no-store'); return; }   // предзапрос браузера: БД не нужна
     $route = routeFromPath(parse_url($_SERVER['REQUEST_URI'] ?? '/', PHP_URL_PATH) ?: '/');
     $body = null;
     if (($_SERVER['REQUEST_METHOD'] ?? '') === 'POST') {
@@ -331,7 +357,7 @@ function run(): void {
     }
     $req = [
         'method' => $_SERVER['REQUEST_METHOD'] ?? 'GET', 'route' => $route, 'query' => $_GET, 'body' => $body,
-        'cookie' => $_COOKIE[COOKIE] ?? '', 'ip' => clientIp(),
+        'cookie' => $_COOKIE[COOKIE] ?? '', 'token' => (string)($_SERVER['HTTP_X_S2G_TOKEN'] ?? ''), 'ip' => clientIp(),
         'jsonType' => str_contains(strtolower($_SERVER['CONTENT_TYPE'] ?? ''), 'application/json'),
     ];
     $err = prepare();

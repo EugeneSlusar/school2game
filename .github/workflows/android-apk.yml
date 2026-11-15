@@ -21,7 +21,10 @@ jobs:
           distribution: temurin
           java-version: 21
 
-      - uses: android-actions/setup-android@v3
+      # Android SDK уже стоит на образе ubuntu-latest (ANDROID_HOME). Шаг android-actions/setup-android на новых образах падает
+      # («Failed to find package 'tools'»), он не нужен. Лицензии принимаем сами, чтобы Gradle мог докачать недостающее.
+      - name: Accept Android SDK licenses
+        run: yes | "$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager" --licenses > /dev/null || true
 
       - name: Install dependencies
         run: npm ci
