@@ -1,0 +1,72 @@
+name: Android release (RuStore)
+
+# Подписанная сборка для магазина. Запускается только вручную: GitHub -> Actions -> Android release -> Run workflow.
+# Нужны секреты репозитория (Settings -> Secrets and variables -> Actions), порядок создания в docs/store/rustore.md:
+#   ANDROID_KEYSTORE_BASE64, ANDROID_KEYSTORE_PASSWORD, ANDROID_KEY_ALIAS, ANDROID_KEY_PASSWORD
+on:
+  workflow_dispatch:
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    env:
+      KEYSTORE_BASE64: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Check signing secrets
+        run: |
+          if [ -z "$KEYSTORE_BASE64" ]; then
+            echo "::error::Нет секрета ANDROID_KEYSTORE_BASE64. Создай ключ подписи по инструкции docs/store/rustore.md и добавь секреты."
+            exit 1
+          fi
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: 21
+
+      # Android SDK уже стоит на образе ubuntu-latest (ANDROID_HOME). Шаг android-actions/setup-android на новых образах падает
+      # («Failed to find package 'tools'»), он не нужен. Лицензии принимаем сами, чтобы Gradle мог докачать недостающее.
+      - name: Accept Android SDK licenses
+        run: yes | "$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager" --licenses > /dev/null || true
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Build the game bundle
+        run: npm run build
+
+      - name: Copy the game into the Android project
+        run: npx cap sync android
+
+      - name: Restore signing key
+        run: echo "$KEYSTORE_BASE64" | base64 -d > "$RUNNER_TEMP/release.keystore"
+
+      - name: Build signed APK and AAB
+        working-directory: android
+        env:
+          S2G_KEYSTORE_FILE: ${{ runner.temp }}/release.keystore
+          S2G_KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
+          S2G_KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
+          S2G_KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
+        run: ./gradlew assembleRelease bundleRelease
+
+      - name: Upload APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: school2game-release-apk
+          path: android/app/build/outputs/apk/release/*.apk
+          if-no-files-found: error
+
+      - name: Upload AAB
+        uses: actions/upload-artifact@v4
+        with:
+          name: school2game-release-aab
+          path: android/app/build/outputs/bundle/release/*.aab
+          if-no-files-found: error

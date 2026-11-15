@@ -350,6 +350,29 @@ ok(computeProgress($lid, $NOW)['comeback']['xp'] === 100, 'после двух �
 [$un, $cn] = guest('3.0.2.7'); rowMatch((int)$un['id'], 'n1', $NOW - 2 * $DAY);
 ok(computeProgress((int)$un['id'], $NOW)['comeback']['ready'] === false, 'пропуск в один день бонусом не считается');
 
+// --- приложение (Android): токен вместо cookie и CORS
+[$st, $r, $ck] = call('POST', '/auth/guest', ['native' => true], '', [], '4.0.0.1') + [2 => null];
+ok($st === 200 && isset($r['token']) && $r['token'] === $ck['value'] && strlen($r['token']) === 64, 'приложению токен выдаётся в ответе');
+[$st, $r2] = call('POST', '/auth/guest', [], '', [], '4.0.0.2'); ok($st === 200 && !isset($r2['token']), 'сайту токен в ответе не нужен (только cookie)');
+$viaToken = dispatch(['method' => 'GET', 'route' => '/me', 'query' => [], 'body' => null, 'cookie' => '', 'token' => $r['token'], 'ip' => '4.0.0.1', 'jsonType' => false]);
+ok($viaToken[0] === 200 && $viaToken[1]['user']['id'] === $r['user']['id'], 'запрос с токеном вместо cookie проходит');
+$bad = dispatch(['method' => 'GET', 'route' => '/me', 'query' => [], 'body' => null, 'cookie' => '', 'token' => str_repeat('a', 64), 'ip' => '4.0.0.1', 'jsonType' => false]); ok($bad[0] === 401, 'чужой токен не подходит');
+[, $rr] = call('POST', '/auth/recover', ['code' => $r['recoveryCode'], 'native' => true], '', [], '4.0.0.3'); ok(isset($rr['token']) && $rr['token'] !== $r['token'], 'вход по коду в приложении тоже даёт токен');
+$cors = S2G\corsHeaders('https://localhost');
+ok(($cors['Access-Control-Allow-Origin'] ?? '') === 'https://localhost' && str_contains($cors['Access-Control-Allow-Headers'], 'X-S2G-Token') && S2G\corsHeaders('https://evil.example') === [] && S2G\corsHeaders('') === [], 'CORS: свой источник разрешён, чужой и пустой нет');
+
+// --- удаление профиля
+[$ud, $cd] = guest('4.0.1.1'); $did = (int)$ud['id'];
+call('POST', '/sync', ['matches' => [match_('del1')], 'tests' => []], $cd);
+rowMatch($did, 'del2', $NOW - 100); q('INSERT INTO league_members (week, user_id, league, grp) VALUES (?, ?, 1, 1)', [weekOf($NOW), $did]);
+[$st, $r] = call('POST', '/account/delete', [], $cd); ok($st === 400 && $r['error'] === 'confirm_required', 'удаление профиля требует подтверждения');
+[$st] = call('POST', '/account/delete', ['confirm' => true]); ok($st === 401, 'удаление без входа = 401');
+[$st] = call('POST', '/account/delete', ['confirm' => true], $cd); ok($st === 200, 'профиль удалён');
+$left = 0; foreach (['users' => 'id', 'sessions' => 'user_id', 'results' => 'user_id', 'topic_stats' => 'user_id', 'league_members' => 'user_id', 'guests' => 'user_id'] as $tb => $col) $left += (int)one("SELECT COUNT(*) c FROM $tb WHERE $col = ?", [$did])['c'];
+ok($left === 0, 'после удаления в базе не осталось ни профиля, ни результатов, ни сессий');
+[$st] = call('GET', '/me', null, $cd); ok($st === 401, 'после удаления старая сессия не действует');
+[, $lbd] = call('GET', '/leaderboard', null, ''); ok(!in_array('Неопознанный №' . $did, array_column($lbd['top'], 'name'), true), 'удалённого игрока нет в рейтинге');
+
 // --- выход
 call('POST', '/logout', [], $c1);
 [$st] = call('GET', '/me', null, $c1); ok($st === 401, 'после выхода сессии нет');

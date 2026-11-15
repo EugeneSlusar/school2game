@@ -1,5 +1,13 @@
 apply plugin: 'com.android.application'
 
+// Версия приложения берётся из package.json: 1.10.0 -> versionName "1.10.0", versionCode 11000 (major*10000 + minor*100 + patch).
+// Каждый выпуск в магазин должен иметь больший versionCode, поэтому достаточно поднять версию в package.json.
+def pkg = new groovy.json.JsonSlurper().parse(file('../../package.json'))
+def vparts = pkg.version.tokenize('.').collect { it.toInteger() }
+def computedVersionCode = vparts[0] * 10000 + vparts[1] * 100 + vparts[2]
+// Подпись релиза: ключ и пароли только в переменных окружения (в GitHub Actions это секреты), в репозитории их нет.
+def haveKeystore = System.getenv('S2G_KEYSTORE_FILE') != null && file(System.getenv('S2G_KEYSTORE_FILE')).exists()
+
 android {
     namespace "ru.slusar.tablichnysport"
     compileSdk rootProject.ext.compileSdkVersion
@@ -7,8 +15,8 @@ android {
         applicationId "ru.slusar.tablichnysport"
         minSdkVersion rootProject.ext.minSdkVersion
         targetSdkVersion rootProject.ext.targetSdkVersion
-        versionCode 3
-        versionName "1.2"
+        versionCode computedVersionCode
+        versionName pkg.version
         testInstrumentationRunner "androidx.test.runner.AndroidJUnitRunner"
         aaptOptions {
              // Files and dirs to omit from the packaged assets dir, modified to accommodate modern web apps.
@@ -16,8 +24,19 @@ android {
             ignoreAssetsPattern '!.svn:!.git:!.ds_store:!*.scc:.*:!CVS:!thumbs.db:!picasa.ini:!*~'
         }
     }
+    signingConfigs {
+        release {
+            if (haveKeystore) {
+                storeFile file(System.getenv('S2G_KEYSTORE_FILE'))
+                storePassword System.getenv('S2G_KEYSTORE_PASSWORD')
+                keyAlias System.getenv('S2G_KEY_ALIAS')
+                keyPassword System.getenv('S2G_KEY_PASSWORD')
+            }
+        }
+    }
     buildTypes {
         release {
+            if (haveKeystore) signingConfig signingConfigs.release
             minifyEnabled false
             proguardFiles getDefaultProguardFile('proguard-android.txt'), 'proguard-rules.pro'
         }

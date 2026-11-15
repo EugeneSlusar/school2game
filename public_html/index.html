@@ -292,7 +292,8 @@ button:focus-visible,summary:focus-visible{outline:3px solid var(--you);outline-
 .hero .ttl i{font-style:normal;font-size:14px;color:var(--ink-soft);white-space:nowrap}
 .bar{display:block;height:9px;margin:5px 0 4px;background:var(--shade);border-radius:99px;overflow:hidden}
 .bar>i{display:block;height:100%;width:0;background:var(--you);border-radius:99px;transition:width .4s}
-.hero .sub{display:block;font-size:14px;line-height:1.15;color:var(--ink-soft)}
+.hero .mid{min-width:0}
+.hero .sub{display:block;font-size:14px;line-height:1.15;color:var(--ink-soft);white-space:normal;overflow:visible;text-overflow:clip}
 .fire{display:grid;justify-items:center;min-width:44px;line-height:1}
 .fire::before{content:"\1F525";font-size:22px}
 .fire b{margin-top:2px;font:400 20px/1 var(--font-display)}
@@ -608,7 +609,7 @@ a.btn{display:flex;align-items:center;justify-content:center;box-sizing:border-b
       <p class="summary" id="summary"></p>
       <button type="button" class="cta" id="btn-start">В игру</button>
     </div>
-    <p class="ver">Версия 1.10.0 · 15.11 06:35</p>
+    <p class="ver">Версия 1.11.0 · 15.11 06:45</p>
   </section>
 
   <!-- ===== Матч ===== -->
@@ -853,6 +854,8 @@ a.btn{display:flex;align-items:center;justify-content:center;box-sizing:border-b
       <button type="button" class="btn primary" id="btn-pf-save">Сохранить</button>
       <p class="pnote" id="pf-sync"></p>
       <button type="button" class="btn" id="btn-sound">Звуки: включены</button>
+      <button type="button" class="btn" id="btn-delete">Удалить профиль</button>
+      <p class="pnote" id="pf-del-note" hidden>Профиль, результаты, прогресс и награды будут удалены с сервера навсегда. Нажми ещё раз, чтобы подтвердить.</p>
 
       <div class="codebox">
         <span class="lbl" style="font:400 13px/1 var(--font-display);letter-spacing:.09em;text-transform:uppercase;color:var(--ink-soft)">Код для входа на другом устройстве</span>
@@ -874,7 +877,7 @@ a.btn{display:flex;align-items:center;justify-content:center;box-sizing:border-b
     </div>
     <div class="actions">
       <button type="button" class="btn" id="btn-profile-back">В меню</button>
-      <p class="ver">Версия 1.10.0 · 15.11 06:35</p>
+      <p class="ver">Версия 1.11.0 · 15.11 06:45</p>
     </div>
   </section>
 
@@ -1456,19 +1459,29 @@ $('#btn-reset').addEventListener('click', () => {
    Ник и аватар можно вписать в профиле; код восстановления переносит профиль на другое устройство. */
 /* по http браузер не хранит защищённые cookie: профиль не удержится, уводим на https (кроме локальной разработки) */
 if (location.protocol === 'http:' && !/^(localhost|127\.|\[::1\]|192\.168\.|10\.)/.test(location.hostname)) { location.replace('https:' + location.href.slice(5)); }
-const API = 'api/';
+/* Приложение (Android, обёртка Capacitor): игра открывается с адреса https://localhost, а сервер на сайте. Cookie другого сайта
+   браузерный движок не хранит, поэтому в приложении сессия идёт токеном в заголовке X-S2G-Token (выдаётся при native: true). */
+const SITE_URL = 'https://lab.orgbox.net/school2game/';
+const NATIVE = !!(window.Capacitor && typeof window.Capacitor.isNativePlatform === 'function' && window.Capacitor.isNativePlatform());
+const API = NATIVE ? SITE_URL + 'api/' : 'api/';
+const TOKEN_KEY = 'school2game-token';
+const getToken = () => { try { return localStorage.getItem(TOKEN_KEY) || ''; } catch (e) { return ''; } };
+const setToken = (t) => { try { localStorage.setItem(TOKEN_KEY, t); } catch (e) { /* ничего */ } };
+const shareBase = () => NATIVE ? SITE_URL : location.origin + location.pathname;   // ссылки для друзей ведут на сайт
 const REC_KEY = 'school2game-recovery';
 const acc = { conf: null, user: null, busy: false };   // conf: ответ /config, null если сервер недоступен
 const getRecovery = () => { try { return localStorage.getItem(REC_KEY) || ''; } catch (e) { return ''; } };
 const setRecovery = (c) => { try { localStorage.setItem(REC_KEY, c); } catch (e) { /* ничего */ } };
 async function api(method, path, body) {
   const opt = { method, credentials: 'same-origin', headers: {} };
+  if (NATIVE) { const tok = getToken(); if (tok) opt.headers['X-S2G-Token'] = tok; if (path === 'auth/guest' || path === 'auth/recover') body = Object.assign({ native: true }, body); }
   if (method === 'POST') { opt.headers['Content-Type'] = 'application/json'; opt.body = JSON.stringify(body || {}); }
   const r = await fetch(API + path, opt);
   let data = null;
   try { data = await r.json(); } catch (e) { /* не JSON */ }
   if (!r.ok) { const err = new Error((data && data.error) || 'http_' + r.status); err.status = r.status; throw err; }
   if (data === null) throw new Error('bad_response');
+  if (NATIVE && data.token) setToken(data.token);
   return data;
 }
 const ERR_TEXT = {
@@ -1924,9 +1937,29 @@ function showStreakFx(d, oldN) {
 $('#sx-ok').addEventListener('click', () => { $('#streakfx').hidden = true; });
 document.addEventListener('keydown', (e) => { if (e.key === 'Escape' && !$('#streakfx').hidden) $('#streakfx').hidden = true; });
 $('#sx-share').addEventListener('click', async () => {
-  const n = prog.data ? prog.data.streak.current : 1, text = `Моя серия в school2game: ${n} ${plural(n, 'день', 'дня', 'дней')} подряд! Сможешь так?`, url = location.origin + location.pathname;
+  const n = prog.data ? prog.data.streak.current : 1, text = `Моя серия в school2game: ${n} ${plural(n, 'день', 'дня', 'дней')} подряд! Сможешь так?`, url = shareBase();
   try { if (navigator.share) { await navigator.share({ title: 'school2game', text, url }); return; } } catch (e) { if (e && e.name === 'AbortError') return; }
   try { if (navigator.clipboard) { await navigator.clipboard.writeText(text + ' ' + url); $('#sx-txt').textContent = 'Текст скопирован. Отправь его другу!'; } } catch (e) { /* ничего */ }
+});
+/* удаление профиля: два нажатия, данные стираются на сервере навсегда, на телефоне создаётся новый чистый профиль */
+let delTimer = 0;
+$('#btn-delete').addEventListener('click', async () => {
+  const b = $('#btn-delete'), note = $('#pf-del-note');
+  if (!delTimer) {
+    b.textContent = 'Точно удалить? Нажми ещё раз'; note.hidden = false;
+    delTimer = setTimeout(() => { delTimer = 0; b.textContent = 'Удалить профиль'; note.hidden = true; }, 5000);
+    return;
+  }
+  clearTimeout(delTimer); delTimer = 0; b.disabled = true;
+  try {
+    await api('POST', 'account/delete', { confirm: true });
+    [REC_KEY, TOKEN_KEY, SEEN_KEY].forEach(k => { try { localStorage.removeItem(k); } catch (e) { /* ничего */ } });
+    acc.user = null; prog.data = null; prefs.matches.forEach(m => { m.sent = true; }); savePrefs();
+    renderAvatarBtn(); renderHero();
+    await refreshAccount(); renderAvatarBtn(); renderProfile();
+    $('#pf-err').textContent = 'Профиль удалён. Создан новый, пустой.'; $('#pf-err').classList.add('okmsg');
+  } catch (e) { $('#pf-err').textContent = errText(e); }
+  finally { b.disabled = false; b.textContent = 'Удалить профиль'; note.hidden = true; }
 });
 $('#btn-sound').addEventListener('click', () => {
   sfx.set(!sfx.enabled()); renderSoundBtn();
@@ -2112,7 +2145,7 @@ $('#du-bot').addEventListener('click', () => {
   startMatch();
 });
 $('#du-share').addEventListener('click', async () => {
-  const url = location.origin + location.pathname + '?duel=' + du.code, text = `Сыграем в school2game! Код комнаты: ${du.code}`;
+  const url = shareBase() + '?duel=' + du.code, text = `Сыграем в school2game! Код комнаты: ${du.code}`;
   try { if (navigator.share) { await navigator.share({ title: 'school2game', text, url }); return; } } catch (e) { if (e && e.name === 'AbortError') return; }
   let ok = false;
   try { if (navigator.clipboard) { await navigator.clipboard.writeText(text + ' ' + url); ok = true; } } catch (e) { /* ничего */ }

@@ -31,7 +31,7 @@ const PROG = {
   week: { days: ['', '', 'done', '', '', '', ''], today: 2 }, dayLeft: 40000
 };
 function makeServer(opts) {
-  const st = { cookie: !!opts.cookie, user: { id: 7, nick: null, name: 'Неопознанный №7', avatar: '🐼', needsNick: true }, calls: [], synced: [], guests: 0, recovers: 0, meFails: 0 };
+  const st = { headers: [], urls: [], cookie: !!opts.cookie, user: { id: 7, nick: null, name: 'Неопознанный №7', avatar: '🐼', needsNick: true }, calls: [], synced: [], guests: 0, recovers: 0, meFails: 0 };
   const handler = (method, path, body) => {
     st.calls.push(method + ' ' + path);
     if (path === 'config') return [200, { accounts: true, avatars: AV }];
@@ -39,7 +39,8 @@ function makeServer(opts) {
     if (path === 'me') return st.cookie ? [200, { user: st.user }] : [401, { error: 'not_logged_in' }];
     if (path === 'league') return opts.progress ? [200, LEAGUE] : [404, { error: 'not_found' }];
     if (path === 'progress') return opts.progress ? [200, PROG] : [404, { error: 'not_found' }];
-    if (path === 'auth/guest') { st.guests++; st.cookie = true; return [200, { user: st.user, recoveryCode: CODE }]; }
+    if (path === 'account/delete') { if (!st.cookie) return [401, { error: 'not_logged_in' }]; st.deleted = body; st.cookie = false; return [200, { ok: true }]; }
+    if (path === 'auth/guest') { st.guests++; st.cookie = true; st.guestBody = body; return [200, Object.assign({ user: st.user, recoveryCode: CODE }, body && body.native ? { token: 'T'.repeat(64) } : {})]; }
     if (path === 'auth/recover') {
       st.recovers++;
       if (String(body.code).replace(/[^A-Z0-9]/gi, '').toUpperCase() !== CODE.replace(/-/g, '')) return [404, { error: 'bad_code' }];
@@ -75,7 +76,8 @@ function makeServer(opts) {
     st,
     fetch: async (url, o = {}) => {
       if (opts.down) throw new TypeError('network');
-      const [status, data] = handler(o.method || 'GET', String(url).replace(/^api\//, ''), o.body ? JSON.parse(o.body) : null);
+      st.urls.push(String(url)); st.headers.push(o.headers || {});
+      const [status, data] = handler(o.method || 'GET', String(url).replace(/^https:\/\/lab\.orgbox\.net\/school2game\/api\//, '').replace(/^api\//, ''), o.body ? JSON.parse(o.body) : null);
       return { ok: status < 400, status, json: async () => data };
     }
   };
@@ -88,6 +90,7 @@ async function boot(opts, store = {}) {
     runScripts: 'dangerously', pretendToBeVisual: true, url: 'http://localhost/',
     beforeParse(w) {
       w.fetch = srv.fetch;
+      if (opts.native) w.Capacitor = { isNativePlatform: () => true };
       for (const k of Object.keys(store)) w.localStorage.setItem(k, store[k]);
     }
   });
@@ -203,6 +206,26 @@ const seed = { 'tablichny-sport-v1': JSON.stringify({ guestId: 'g1', savedAt: 1,
   ok(t.errs.length === 0, 'лига без ошибок JS: ' + t.errs);
   t = await boot({ cookie: true }, { 'school2game-recovery': CODE });
   ok(t.$('#btn-hero').hidden, 'без прогресса с сервера карточка скрыта, игра работает');
+
+  // 11. приложение (Android): запросы идут на сайт по полному адресу, сессия держится токеном в заголовке
+  t = await boot({ native: true, progress: true });
+  ok(t.srv.st.urls.length > 0 && t.srv.st.urls.every(u => u.startsWith('https://lab.orgbox.net/school2game/api/')), 'приложение: все запросы идут на адрес сайта');
+  ok(t.srv.st.guestBody && t.srv.st.guestBody.native === true && t.w.localStorage.getItem('school2game-token') === 'T'.repeat(64), 'приложение: при создании профиля просит токен и сохраняет его');
+  const pi = t.srv.st.urls.findIndex(u => /progress$/.test(u));
+  ok(pi > 0 && t.srv.st.headers[pi]['X-S2G-Token'] === 'T'.repeat(64), 'приложение: дальнейшие запросы несут токен в заголовке');
+  ok(t.errs.length === 0, 'приложение без ошибок JS: ' + t.errs);
+  t = await boot({ cookie: true });
+  ok(t.srv.st.urls.every(u => u.startsWith('api/')) && !('X-S2G-Token' in (t.srv.st.headers[0] || {})), 'в браузере запросы относительные и без токена');
+
+  // 12. удаление профиля: два нажатия, данные стираются, создаётся новый профиль
+  t = await boot({ cookie: true }, { 'school2game-recovery': CODE });
+  t.click('#btn-avatar'); await sleep(60);
+  t.click('#btn-delete');
+  ok(/Точно удалить/.test(t.$('#btn-delete').textContent) && !t.$('#pf-del-note').hidden && !t.srv.st.deleted, 'удаление профиля: первое нажатие только просит подтвердить');
+  t.click('#btn-delete'); await sleep(150);
+  ok(t.srv.st.deleted && t.srv.st.deleted.confirm === true && t.srv.st.guests === 1, 'удаление профиля: второе нажатие стирает профиль и создаёт новый');
+  ok(/Профиль удалён/.test(t.$('#pf-err').textContent) && t.$('#btn-delete').textContent === 'Удалить профиль', 'удаление профиля: сообщение и кнопка в исходном виде');
+  ok(t.errs.length === 0, 'удаление без ошибок JS: ' + t.errs);
 
   console.log(fails ? `\nПровалено: ${fails} из ${n}` : `UI: все ${n} проверок пройдены`);
   process.exit(fails ? 1 : 0);
