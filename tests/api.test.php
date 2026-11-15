@@ -267,6 +267,8 @@ ok($pr['xp'] >= 22 + 64 + 10 + 20 && $bid('test5') && $bid('clean') && $pr['tota
 foreach ([2, 1, 0] as $k) rowMatch($sid, "s$k", $NOW - $k * $DAY);
 $p = computeProgress($sid, $NOW);
 ok($p['streak']['current'] === 3 && $p['streak']['best'] === 3 && $p['streak']['playedToday'] === true, 'серия 3 дня подряд');
+$p = computeProgress($sid, $NOW);
+ok(count($p['week']['days']) === 7 && $p['week']['today'] >= 0 && $p['week']['today'] <= 6 && $p['week']['days'][$p['week']['today']] === 'done' && $p['dayLeft'] > 0 && $p['dayLeft'] <= 86400, 'неделя для праздника серии: сегодня отмечено, есть время до конца дня');
 $p = computeProgress($sid, $NOW + $DAY); ok($p['streak']['current'] === 3 && $p['streak']['playedToday'] === false, 'вчера играл, сегодня ещё нет: серия жива');
 $p = computeProgress($sid, $NOW + 2 * $DAY); ok($p['streak']['current'] === 0 && $p['streak']['best'] === 3, 'два дня без игры: серия сгорела, рекорд остался');
 ok(array_values(array_filter($p['avatars'], fn($a) => $a['a'] === '⭐'))[0]['unlocked'] === true && array_values(array_filter($p['avatars'], fn($a) => $a['a'] === '🔥'))[0]['unlocked'] === false, 'аватар «⭐» открыт серией 3, «🔥» (7 дней) ещё закрыт');

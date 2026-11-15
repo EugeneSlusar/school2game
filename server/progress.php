@@ -122,19 +122,23 @@ function computeProgress(int $uid, ?int $now = null): array {
 
     // серия: подряд идущие дни; каждые 7 дней серии дают «заморозку» (до двух), она закрывает один пропущенный день
     $active = array_keys($days); sort($active);
-    $streak = 0; $best = 0; $freezes = 0; $prev = null;
+    $streak = 0; $best = 0; $freezes = 0; $prev = null; $frozen = [];
     foreach ($active as $d) {
         if ($prev === null) $streak = 1;
         else {
             $gap = $d - $prev;
             if ($gap === 1) $streak++;
-            elseif ($gap === 2 && $freezes > 0) { $freezes--; $streak++; }
+            elseif ($gap === 2 && $freezes > 0) { $freezes--; $streak++; $frozen[$prev + 1] = true; }   // пропущенный день закрыла «заморозка»
             else $streak = 1;
         }
         if ($streak % 7 === 0) $freezes = min(2, $freezes + 1);
         $best = max($best, $streak);
         $prev = $d;
     }
+    // неделя (пн-вс) для полоски в празднике серии: 'done' играл, 'frozen' закрыт заморозкой
+    $idx = ($today + 3) % 7;                  // 1 января 1970 был четвергом
+    $week = [];
+    for ($i = 0; $i < 7; $i++) { $d = $today - $idx + $i; $week[] = isset($days[$d]) ? 'done' : (isset($frozen[$d]) ? 'frozen' : ''); }
     $alive = $prev !== null && ($today - $prev <= 1 || ($today - $prev === 2 && $freezes > 0));
 
     // задания дня: награда за выполненные в любой день, плюс бонус за все три
@@ -173,7 +177,7 @@ function computeProgress(int $uid, ?int $now = null): array {
     }
 
     return [
-        'day' => $today, 'xp' => $xp, 'level' => $level, 'title' => titleOf($level), 'levelXp' => xpForLevel($level), 'nextXp' => $level >= MAX_LEVEL ? null : xpForLevel($level + 1),
+        'day' => $today, 'dayLeft' => 86400 - (($now + MSK_OFFSET) % 86400), 'week' => ['days' => $week, 'today' => $idx], 'xp' => $xp, 'level' => $level, 'title' => titleOf($level), 'levelXp' => xpForLevel($level), 'nextXp' => $level >= MAX_LEVEL ? null : xpForLevel($level + 1),
         'streak' => ['current' => $alive ? $streak : 0, 'best' => $best, 'playedToday' => $prev === $today, 'freezes' => $freezes],
         'quests' => ['items' => $quests, 'done' => $doneNow, 'allDone' => $doneNow === 3, 'bonus' => QUEST_DAY_BONUS],
         'badges' => $badges, 'avatars' => $avatars,
