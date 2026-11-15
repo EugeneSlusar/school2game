@@ -10,12 +10,25 @@ const sleep = (ms) => new Promise(r => setTimeout(r, ms));
 
 const AV = ['⚽', '🏀', '🏆', '🦊', '🐼', '🐯'];
 const CODE = 'ABCD-EFGH-JKMN';
+const LEAGUE = {
+  week: 2900, league: 2, name: 'Серебряная лига', icon: '🥈', leagues: 7, secondsLeft: 200000, size: 8, up: 5, down: 3, rank: 3, xp: 120, trophies: { gold: 0, silver: 0, bronze: 0, list: [] },
+  last: { league: 1, name: 'Бронзовая лига', icon: '🥉', rank: 1, xp: 300, result: 'up' },
+  list: [
+    { rank: 1, name: 'Соня', avatar: '🐼', frame: '', xp: 300, bot: true }, { rank: 2, name: 'Макс', avatar: '🦊', frame: 'gold', xp: 200, bot: false },
+    { rank: 3, name: 'Неопознанный №7', avatar: '🐼', frame: 'bronze', xp: 120, bot: false, me: true }, { rank: 4, name: 'Лёва', avatar: '🐯', frame: '', xp: 100, bot: true },
+    { rank: 5, name: 'Алиса', avatar: '🦁', frame: '', xp: 80, bot: true }, { rank: 6, name: 'Тимур', avatar: '🐸', frame: '', xp: 60, bot: true },
+    { rank: 7, name: 'Мира', avatar: '🐵', frame: '', xp: 40, bot: true }, { rank: 8, name: 'Даня', avatar: '🐧', frame: '', xp: 10, bot: true }]
+};
 const PROG = {
   day: 20000, xp: 100, level: 2, title: 'Ученик', levelXp: 80, nextXp: 240,
   streak: { current: 3, best: 3, playedToday: false, freezes: 1 },
   quests: { items: [{ id: 'w1', text: 'Выиграй матч', have: 0, need: 1, xp: 30, done: false }, { id: 'c20', text: 'Реши 20 примеров верно', have: 20, need: 20, xp: 25, done: true }, { id: 'm2', text: 'Сыграй 2 матча', have: 1, need: 2, xp: 25, done: false }], done: 1, allDone: false, bonus: 30 },
   badges: [{ id: 'first', icon: '🏁', name: 'Первый матч', how: 'Сыграй первый матч', have: 1, need: 1, unlocked: true }, { id: 'c100', icon: '🎯', name: '100 верных', how: '100 верных ответов', have: 40, need: 100, unlocked: false }],
-  avatars: AV.map((a, i) => i < 4 ? { a, unlocked: true } : { a, unlocked: false, need: 'Уровень 3' })
+  avatars: AV.map((a, i) => i < 4 ? { a, unlocked: true } : { a, unlocked: false, need: 'Уровень 3' }),
+  frames: [{ id: 'bronze', name: 'Бронзовая', unlocked: true, need: 'Попади в бронзовую лигу' }, { id: 'gold', name: 'Золотая', unlocked: false, need: 'Дойди до золотой лиги' }],
+  trophies: { gold: 1, silver: 0, bronze: 2, list: [{ week: 1, league: 1, name: 'Бронзовая', icon: '🥉', rank: 1 }] },
+  comeback: { ready: false, today: false, xp: 50, missed: 0 },
+  week: { days: ['', '', 'done', '', '', '', ''], today: 2 }, dayLeft: 40000
 };
 function makeServer(opts) {
   const st = { cookie: !!opts.cookie, user: { id: 7, nick: null, name: 'Неопознанный №7', avatar: '🐼', needsNick: true }, calls: [], synced: [], guests: 0, recovers: 0, meFails: 0 };
@@ -24,6 +37,7 @@ function makeServer(opts) {
     if (path === 'config') return [200, { accounts: true, avatars: AV }];
     if (path === 'me' && opts.failMe && st.meFails++ < opts.failMe) return [500, { error: 'boom' }];
     if (path === 'me') return st.cookie ? [200, { user: st.user }] : [401, { error: 'not_logged_in' }];
+    if (path === 'league') return opts.progress ? [200, LEAGUE] : [404, { error: 'not_found' }];
     if (path === 'progress') return opts.progress ? [200, PROG] : [404, { error: 'not_found' }];
     if (path === 'auth/guest') { st.guests++; st.cookie = true; return [200, { user: st.user, recoveryCode: CODE }]; }
     if (path === 'auth/recover') {
@@ -167,14 +181,26 @@ const seed = { 'tablichny-sport-v1': JSON.stringify({ guestId: 'g1', savedAt: 1,
   ok(!t.$('#btn-hero').hidden && t.$('#hero-lv').textContent === '2' && t.$('#hero-title').textContent === 'Ученик' && t.$('#hero-streak').textContent === '3', 'карточка в меню: уровень, звание, серия');
   ok(/Сыграй сегодня/.test(t.$('#hero-sub').textContent) && t.$('#hero-bar').style.width === '13%', 'в карточке подсказка про серию и полоса опыта');
   t.click('#btn-hero'); await sleep(60);
-  ok(!t.$('#screen-rewards').hidden && t.$$('#rw-body .rcard').length === 5 && t.$$('#rw-body .quest').length === 3 && t.$$('#rw-body .quest.done').length === 1, 'экран наград: уровень, серия, задания, значки, аватары');
+  ok(!t.$('#screen-rewards').hidden && t.$$('#rw-body .rcard').length === 7 && t.$$('#rw-body .quest').length === 3 && t.$$('#rw-body .quest.done').length === 1, 'экран наград: уровень, серия, задания, значки, аватары');
   ok(t.$$('#rw-body .badge').length === 2 && t.$$('#rw-body .badge.lock').length === 1 && /40 из 100/.test(t.$('#rw-body .badge.lock').textContent), 'значки: один открыт, закрытый показывает прогресс');
+  ok(/Кубки лиги/.test(t.$('#rw-body').textContent) && /🥇 1/.test(t.$('#rw-body').textContent) && t.$$('#rw-body .rcard').length === 7, 'на экране наград есть кубки лиги и рамки');
   t.click('#btn-rewards-back'); ok(!t.$('#screen-menu').hidden, 'из наград можно вернуться в меню');
   t.click('#btn-avatar'); await sleep(80);
   ok(t.$$('#pf-avs button.lock').length === 1 && t.$$('#pf-avs button').length === 6, 'в профиле закрыт аватар с замком (текущий аватар остаётся доступным)');
   t.$('#pf-avs button.lock').dispatchEvent(new t.w.MouseEvent('click', { bubbles: true }));
   ok(/Уровень 3/.test(t.$('#pf-err').textContent), 'нажатие на закрытый аватар объясняет, как его открыть');
+  ok(!t.$('#pf-frames-box').hidden && t.$$('#pf-frames button').length === 3 && t.$$('#pf-frames button.lock').length === 1, 'в профиле выбор рамки: без рамки, открытая и закрытая');
+  t.$('#pf-frames button.lock').dispatchEvent(new t.w.MouseEvent('click', { bubbles: true }));
+  ok(/золотой лиги/.test(t.$('#pf-err').textContent), 'нажатие на закрытую рамку объясняет, как её открыть');
   ok(t.errs.length === 0, 'прогресс без ошибок JS: ' + t.errs);
+  // лига недели
+  t.click('#btn-profile-back'); t.click('#btn-league'); await sleep(80);
+  ok(!t.$('#screen-league').hidden && /Серебряная лига/.test(t.$('#lg-body').textContent) && t.$$('#lg-body .lrow').length === 8, 'лига: карточка и таблица из 8 участников');
+  ok(t.$$('#lg-body .lrow.zup').length === 5 && t.$$('#lg-body .lrow.zdown').length === 3 && t.$$('#lg-body .lrow.me').length === 1, 'лига: зоны повышения и спуска, свой ряд выделен');
+  ok(/Прошлая неделя/.test(t.$('#lg-body').textContent) && /перешёл в лигу выше/.test(t.$('#lg-body').textContent) && /Кубок/.test(t.$('#lg-body').textContent), 'лига: итог прошлой недели с кубком');
+  ok(t.$$('#lg-body .lrow .nm .bot').length === 6 && t.$$('#lg-body .av.fr').length === 2 && /боты/.test(t.$('#lg-note').textContent), 'лига: боты помечены, рамки видны');
+  t.click('#btn-league-back'); ok(!t.$('#screen-menu').hidden, 'из лиги можно вернуться в меню');
+  ok(t.errs.length === 0, 'лига без ошибок JS: ' + t.errs);
   t = await boot({ cookie: true }, { 'school2game-recovery': CODE });
   ok(t.$('#btn-hero').hidden, 'без прогресса с сервера карточка скрыта, игра работает');
 

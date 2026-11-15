@@ -8,6 +8,7 @@ require_once __DIR__ . '/validate.php';
 require_once __DIR__ . '/profanity.php';
 require_once __DIR__ . '/duel.php';
 require_once __DIR__ . '/progress.php';
+require_once __DIR__ . '/league.php';
 
 const COOKIE = 's2g_sess';
 const CODE_ALPHABET = 'ABCDEFGHJKMNPQRSTUVWXYZ23456789';
@@ -58,7 +59,7 @@ function ipKey(array $req): string { return substr(hash('sha256', 'school2game|'
 /** Имя в рейтинге: ник или «Неопознанный №N», пока игрок не вписал свои данные */
 function displayName(array $u): string { return $u['nick'] !== null ? (string)$u['nick'] : 'Неопознанный №' . (int)$u['id']; }
 function userView(array $u): array {
-    return ['id' => (int)$u['id'], 'nick' => $u['nick'], 'name' => displayName($u), 'avatar' => $u['avatar'], 'needsNick' => $u['nick'] === null];
+    return ['id' => (int)$u['id'], 'nick' => $u['nick'], 'name' => displayName($u), 'avatar' => $u['avatar'], 'frame' => $u['frame'] ?? '', 'needsNick' => $u['nick'] === null];
 }
 function sessionUser(array $req): ?array {
     $tok = $req['cookie'] ?? '';
@@ -136,7 +137,7 @@ function logout(array $req): array {
 function profile(array $req): array {
     $user = requireUser($req);
     $b = $req['body'] ?? [];
-    $nick = $user['nick']; $nickKey = $user['nick_key']; $avatar = $user['avatar'];
+    $nick = $user['nick']; $nickKey = $user['nick_key']; $avatar = $user['avatar']; $frame = $user['frame'] ?? '';
     if (array_key_exists('nick', $b) && $b['nick'] !== null && $b['nick'] !== '') {
         $n = cleanNick($b['nick']);
         if ($n === null) fail(400, 'bad_nick');
@@ -150,8 +151,13 @@ function profile(array $req): array {
         if ($b['avatar'] !== $user['avatar'] && !avatarUnlocked((int)$user['id'], $b['avatar'])) fail(403, 'avatar_locked');
         $avatar = $b['avatar'];
     }
+    if (array_key_exists('frame', $b)) {
+        $f = is_string($b['frame']) ? $b['frame'] : '';
+        if ($f !== '' && (!isset(FRAMES[$f]) || !frameUnlocked((int)$user['id'], $f))) fail(403, 'frame_locked');
+        $frame = $f;
+    }
     try {
-        q('UPDATE users SET nick = ?, nick_key = ?, avatar = ? WHERE id = ?', [$nick, $nickKey, $avatar, $user['id']]);
+        q('UPDATE users SET nick = ?, nick_key = ?, avatar = ?, frame = ? WHERE id = ?', [$nick, $nickKey, $avatar, $frame, $user['id']]);
     } catch (\PDOException $e) {
         fail(409, 'nick_taken');
     }
@@ -240,13 +246,13 @@ function leaderboard(array $req): array {
     if ($period === 'week') { $where[] = 'r.played_at >= ?'; $args[] = weekStart(); }
     if ($subject !== 'all') { $where[] = 'r.subject = ?'; $args[] = $subject; }
     $w = implode(' AND ', $where);
-    $rows = all("SELECT u.id, u.nick, u.avatar, SUM(r.score) pts, COUNT(*) n, $wins wins
+    $rows = all("SELECT u.id, u.nick, u.avatar, u.frame, SUM(r.score) pts, COUNT(*) n, $wins wins
                  FROM $tbl r JOIN users u ON u.id = r.user_id WHERE $w
-                 GROUP BY u.id, u.nick, u.avatar ORDER BY $order LIMIT 50", $args);
+                 GROUP BY u.id, u.nick, u.avatar, u.frame ORDER BY $order LIMIT 50", $args);
     $me = sessionUser($req);
     $list = []; $mine = null;
     foreach ($rows as $i => $r) {
-        $e = ['rank' => $i + 1, 'name' => displayName($r), 'anon' => $r['nick'] === null, 'avatar' => $r['avatar'], 'points' => (int)$r['pts'], 'matches' => (int)$r['n'], 'wins' => (int)$r['wins']];
+        $e = ['rank' => $i + 1, 'name' => displayName($r), 'anon' => $r['nick'] === null, 'avatar' => $r['avatar'], 'frame' => $r['frame'] ?? '', 'points' => (int)$r['pts'], 'matches' => (int)$r['n'], 'wins' => (int)$r['wins']];
         if ($me && (int)$r['id'] === (int)$me['id']) { $e['me'] = true; $mine = $e; }
         $list[] = $e;
     }
@@ -259,7 +265,7 @@ function leaderboard(array $req): array {
             $cargs = $mode === 'duel' ? [(int)$own['wins'], (int)$own['wins'], (int)$own['pts']] : [(int)$own['pts']];
             $above = one("SELECT COUNT(*) c FROM (SELECT r.user_id FROM $tbl r JOIN users u ON u.id = r.user_id WHERE $w GROUP BY r.user_id HAVING $cond) t",
                 array_merge($args, $cargs));
-            $mine = ['rank' => (int)$above['c'] + 1, 'name' => displayName($me), 'anon' => $me['nick'] === null, 'avatar' => $me['avatar'], 'points' => (int)$own['pts'],
+            $mine = ['rank' => (int)$above['c'] + 1, 'name' => displayName($me), 'anon' => $me['nick'] === null, 'avatar' => $me['avatar'], 'frame' => $me['frame'] ?? '', 'points' => (int)$own['pts'],
                 'matches' => (int)$own['n'], 'wins' => (int)$own['wins'], 'me' => true];
         }
     }
@@ -280,6 +286,7 @@ function routes(): array {
         'POST /sync' => 'S2G\sync',
         'GET /leaderboard' => 'S2G\leaderboard',
         'GET /progress' => 'S2G\progress',
+        'GET /league' => 'S2G\league',
         'POST /duel/create' => 'S2G\duelCreate',
         'POST /duel/join' => 'S2G\duelJoin',
         'POST /duel/queue' => 'S2G\duelQueue',

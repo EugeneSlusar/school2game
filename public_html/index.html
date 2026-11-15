@@ -366,6 +366,23 @@ button:focus-visible,summary:focus-visible{outline:3px solid var(--you);outline-
 .sx-ok{flex:1;height:56px;padding:0 14px;color:#0b1a24;background:#4cbdff;border:0;border-radius:16px;box-shadow:0 5px 0 #1d8dd0;font:400 20px/1 var(--font-display);letter-spacing:.04em;text-transform:uppercase;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .sx-ok:active{transform:translateY(4px);box-shadow:0 1px 0 #1d8dd0}
 @media (prefers-reduced-motion: reduce){.streakfx *{animation:none!important}.sx-roll{transform:translateY(-50%)}.sx-sparks{display:none}}
+.fr{outline:3px solid var(--fc,#b8c4d0);outline-offset:1px;box-shadow:0 0 10px var(--fc,#b8c4d0);border-radius:12px}
+.fr-bronze{--fc:#cd7f32}.fr-silver{--fc:#aab7c4}.fr-gold{--fc:#f0b400}.fr-sapphire{--fc:#2f6fed}.fr-ruby{--fc:#e0245e}.fr-emerald{--fc:#12b76a}.fr-diamond{--fc:#6fe3ff}.fr-flame{--fc:#ff6a13}.fr-star{--fc:#ffd24a}.fr-crown{--fc:#ffc400}
+.fr-diamond,.fr-crown,.fr-flame{animation:frGlow 2.2s ease-in-out infinite}
+@keyframes frGlow{0%,100%{box-shadow:0 0 6px var(--fc)}50%{box-shadow:0 0 16px var(--fc),0 0 4px #fff}}
+@media (prefers-reduced-motion: reduce){.fr{animation:none!important}}
+.lrow .av.fr{display:grid;place-items:center;width:32px;height:32px}
+.lg-card{display:flex;align-items:center;gap:12px;padding:12px;background:var(--card);border:2px solid var(--ink);border-radius:14px}
+.lg-card .ic{font-size:44px;line-height:1}
+.lg-card b{display:block;font:400 22px/1.1 var(--font-display)}
+.lg-card small{display:block;margin-top:3px;font-size:16px;color:var(--ink-soft)}
+.lg-last{padding:10px 12px;font-size:17px;line-height:1.25;background:var(--you-soft);border:2px solid var(--you);border-radius:14px}
+.lrow.zup{border-left:5px solid var(--good)}
+.lrow.zdown{border-left:5px solid var(--bad)}
+.lrow .bot{margin-left:4px;font-size:13px;color:var(--ink-soft)}
+.lg-legend{display:grid;gap:2px;margin:0;font-size:15px;color:var(--ink-soft)}
+.trophies{display:flex;flex-wrap:wrap;gap:8px}
+.trophies span{padding:6px 10px;background:var(--card);border:2px solid var(--ink);border-radius:10px;font:400 18px/1.1 var(--font-display)}
 .review h3{margin:0 0 8px;font:400 13px/1 var(--font-display);letter-spacing:.09em;text-transform:uppercase;color:var(--ink-soft)}
 .review p{margin:0;color:var(--ink-soft)}
 .coachline{margin:0;font-size:18px;text-align:center}
@@ -561,6 +578,9 @@ a.btn{display:flex;align-items:center;justify-content:center;box-sizing:border-b
       <button type="button" class="linkbtn" id="btn-duel">Онлайн-дуэль</button>
       <button type="button" class="linkbtn" id="btn-test">Контрольная</button>
     </div>
+    <div class="row">
+      <button type="button" class="linkbtn" id="btn-league">Лига недели</button>
+    </div>
     <div class="row two">
       <button type="button" class="linkbtn" id="btn-progress">Мой прогресс</button>
       <button type="button" class="linkbtn" id="btn-rating">Рейтинг</button>
@@ -588,7 +608,7 @@ a.btn{display:flex;align-items:center;justify-content:center;box-sizing:border-b
       <p class="summary" id="summary"></p>
       <button type="button" class="cta" id="btn-start">В игру</button>
     </div>
-    <p class="ver">Версия 1.9.0 · 15.11 06:30</p>
+    <p class="ver">Версия 1.10.0 · 15.11 06:35</p>
   </section>
 
   <!-- ===== Матч ===== -->
@@ -768,6 +788,21 @@ a.btn{display:flex;align-items:center;justify-content:center;box-sizing:border-b
     </div>
   </section>
 
+  <!-- ===== Лига недели ===== -->
+  <section class="screen" id="screen-league" hidden>
+    <header class="brand">
+      <h1>Лига</h1>
+      <svg viewBox="0 0 150 10" aria-hidden="true"><path class="wave" d="M3 5 Q12 -1 21 5 T39 5 T57 5 T75 5 T93 5 T111 5 T129 5 T147 5"/></svg>
+      <p>Опыт за неделю. В воскресенье лучшие переходят в лигу выше.</p>
+    </header>
+    <div id="lg-body" aria-live="polite"></div>
+    <p class="pnote" id="lg-note"></p>
+    <div class="actions">
+      <button type="button" class="btn primary" id="btn-league-rewards">Награды и кубки</button>
+      <button type="button" class="btn" id="btn-league-back">В меню</button>
+    </div>
+  </section>
+
   <!-- ===== Дуэль ===== -->
   <section class="screen" id="screen-duel" hidden>
     <header class="brand">
@@ -813,6 +848,7 @@ a.btn{display:flex;align-items:center;justify-content:center;box-sizing:border-b
       <div class="pcard"><span class="av" id="pf-av"></span><b id="pf-nick"></b></div>
       <div class="fld"><label for="pf-nick-in">Ник</label><input id="pf-nick-in" maxlength="16" autocomplete="off" autocapitalize="off" spellcheck="false" placeholder="Придумай ник"></div>
       <div class="fld"><span class="lbl">Аватар</span><div class="avs" id="pf-avs"></div></div>
+      <div class="fld" id="pf-frames-box" hidden><span class="lbl">Рамка аватара</span><div class="tchips" id="pf-frames"></div></div>
       <p class="err" id="pf-err" role="alert"></p>
       <button type="button" class="btn primary" id="btn-pf-save">Сохранить</button>
       <p class="pnote" id="pf-sync"></p>
@@ -838,7 +874,7 @@ a.btn{display:flex;align-items:center;justify-content:center;box-sizing:border-b
     </div>
     <div class="actions">
       <button type="button" class="btn" id="btn-profile-back">В меню</button>
-      <p class="ver">Версия 1.9.0 · 15.11 06:30</p>
+      <p class="ver">Версия 1.10.0 · 15.11 06:35</p>
     </div>
   </section>
 
@@ -1106,6 +1142,7 @@ const restart = (node, cls) => { node.classList.remove(cls); node.getBoundingCli
 const fmt = (s) => { const t = Math.ceil(s); return Math.floor(t / 60) + ':' + String(t % 60).padStart(2, '0'); };
 const h = (tag, cls, text) => { const n = document.createElement(tag); if (cls) n.className = cls; if (text != null) n.textContent = text; return n; };
 const dec = (x) => x.toFixed(1).replace('.', ',');
+const frameCls = (f) => f ? ' fr fr-' + f : '';
 const plural = (n, a, b, c) => { const m = n % 100, k = n % 10; return m >= 11 && m <= 14 ? c : k === 1 ? a : k >= 2 && k <= 4 ? b : c; };
 
 /* ---------- сохранённые настройки, статистика, ошибки ---------- */
@@ -1308,7 +1345,7 @@ const ball = { x: 0, y: 0, rot: 0 };
 
 /* ---------- экраны и меню ---------- */
 function show(name) {
-  for (const n of ['menu', 'match', 'result', 'progress', 'rating', 'rewards', 'duel', 'profile']) $('#screen-' + n).hidden = n !== name;
+  for (const n of ['menu', 'match', 'result', 'progress', 'rating', 'rewards', 'league', 'duel', 'profile']) $('#screen-' + n).hidden = n !== name;
   $('#screen-' + name).scrollTop = 0;
 }
 let topicsFor = '';
@@ -1437,7 +1474,7 @@ async function api(method, path, body) {
 const ERR_TEXT = {
   bad_nick: 'Ник: от 2 до 16 символов, буквы, цифры, пробел и _ . -', nick_taken: 'Такой ник уже занят, придумай другой',
   nick_not_allowed: 'Такой ник нельзя. Выбери другой', bad_avatar: 'Выбери аватар из списка', not_logged_in: 'Профиль не найден, попробуй позже',
-  avatar_locked: 'Этот аватар пока закрыт, его нужно открыть игрой', bad_code: 'Код не подошёл. Проверь буквы и цифры', too_many_requests: 'Слишком много попыток, подожди немного',
+  avatar_locked: 'Этот аватар пока закрыт, его нужно открыть игрой', frame_locked: 'Эта рамка пока закрыта', bad_code: 'Код не подошёл. Проверь буквы и цифры', too_many_requests: 'Слишком много попыток, подожди немного',
   room_not_found: 'Комната не найдена. Проверь код: четыре цифры', own_room: 'Это твоя комната. Дай код другу', room_taken: 'В этой комнате уже играют',
   duel_not_found: 'Эта дуэль уже закрыта', bad_subject: 'Выбери предмет в меню', bad_level: 'Выбери уровень в меню'
 };
@@ -1449,6 +1486,7 @@ const userName = (u) => u.name || u.nick || 'Неопознанный';
 function renderAvatarBtn() {
   const u = acc.user;
   $('#avb-av').textContent = u ? (u.avatar || '🙂') : '🙂';
+  $('#avb-av').className = 'avb' + frameCls(u && u.frame);
   $('#avb-name').textContent = u ? (u.nick || 'Неопознанный') : 'Гость';
   $('#avb-hint').textContent = u ? (u.nick ? 'мой профиль' : 'впиши своё имя') : (acc.conf ? (acc.err ? 'нажми, чтобы повторить' : 'загружаю…') : 'нет связи');
   $('#avb-dot').hidden = !(u && !u.nick);
@@ -1534,6 +1572,8 @@ function renderProfile() {
   $('#pf-sub').textContent = u.nick ? 'Ник и аватар видны другим игрокам в рейтинге. Их можно менять.'
                                     : 'Сейчас ты «Неопознанный игрок». Впиши ник, чтобы тебя узнавали в рейтинге. Настоящее имя писать не нужно.';
   $('#pf-av').textContent = pfAvatar || u.avatar || '🙂';
+  $('#pf-av').className = 'av' + frameCls(u.frame);
+  renderFrames();
   $('#pf-nick').textContent = userName(u);
   const box = $('#pf-avs'); box.textContent = '';
   const avs = (prog.data && prog.data.avatars) || ((acc.conf && acc.conf.avatars) || []).map(a => ({ a, unlocked: true }));
@@ -1552,6 +1592,27 @@ function renderProfile() {
                                     : 'Код показывается один раз при создании профиля. Нажми «Новый код», чтобы получить новый (старый перестанет работать).';
   $('#btn-code-copy').hidden = !rc;
 }
+function renderFrames() {
+  const d = prog.data, box = $('#pf-frames'), wrap = $('#pf-frames-box');
+  wrap.hidden = !d; if (!d) return;
+  box.textContent = '';
+  const cur = (acc.user && acc.user.frame) || '';
+  const mk = (id, label, unlocked, need) => {
+    const b = h('button', 'tchip' + (unlocked ? '' : ' lock'), label); b.type = 'button'; b.dataset.f = id; b.dataset.need = need || '';
+    b.setAttribute('aria-pressed', String(id === cur)); if (!unlocked) b.style.opacity = '.45'; box.appendChild(b);
+  };
+  mk('', 'Без рамки', true);
+  (d.frames || []).forEach(f => mk(f.id, f.name, f.unlocked, f.need));
+}
+$('#pf-frames').addEventListener('click', async (e) => {
+  const b = e.target.closest('button[data-f]'); if (!b) return;
+  const er = $('#pf-err'); er.classList.remove('okmsg');
+  if (b.classList.contains('lock')) { er.textContent = `Эта рамка откроется так: ${b.dataset.need || 'играй дальше'}`; return; }
+  try {
+    const r = await api('POST', 'profile', { frame: b.dataset.f });
+    acc.user = r.user; renderAvatarBtn(); renderProfile(); er.textContent = 'Рамка выбрана'; er.classList.add('okmsg');
+  } catch (err) { er.textContent = errText(err); }
+});
 function openProfile() {
   pfAvatar = ''; loadProgress(); $('#pf-err').textContent = ''; $('#pf-err').classList.remove('okmsg'); $('#rc-err').textContent = ''; $('#rc-in').value = '';
   $('#pf-nick-in').value = (acc.user && acc.user.nick) || '';
@@ -1630,7 +1691,7 @@ const MEDAL = ['🥇', '🥈', '🥉'];
 function ratingRow(e) {
   const row = h('div', 'lrow' + (e.me ? ' me' : ''));
   row.appendChild(h('span', 'rk', e.rank <= 3 ? MEDAL[e.rank - 1] : String(e.rank)));
-  row.appendChild(h('span', 'av', e.avatar || '🙂'));
+  row.appendChild(h('span', 'av' + frameCls(e.frame), e.avatar || '🙂'));
   const nm = h('span', 'nm', e.name + (e.me ? ' (ты)' : ''));
   nm.appendChild(h('small', null, rt.mode === 'duel' ? `дуэлей ${e.matches} · очков ${e.points}` : `матчей ${e.matches} · побед ${e.wins}`));
   row.appendChild(nm);
@@ -1720,7 +1781,7 @@ const setSeen = (d) => {
   try {
     localStorage.setItem(SEEN_KEY, JSON.stringify({
       xp: d.xp, level: d.level, day: d.day, streak: d.streak.current, badges: d.badges.filter(b => b.unlocked).map(b => b.id),
-      avatars: d.avatars.filter(a => a.unlocked).map(a => a.a), quests: d.quests.items.filter(q => q.done).map(q => q.id)
+      avatars: d.avatars.filter(a => a.unlocked).map(a => a.a), quests: d.quests.items.filter(q => q.done).map(q => q.id), cb: d.comeback && d.comeback.today ? d.day : 0
     }));
   } catch (e) { /* ничего */ }
 };
@@ -1743,7 +1804,9 @@ function renderHero() {
   $('#hero-lv').textContent = d.level; $('#hero-title').textContent = d.title;
   $('#hero-xp').textContent = d.nextXp ? `${d.xp} / ${d.nextXp}` : `${d.xp}`;
   $('#hero-bar').style.width = Math.round(levelPct(d)) + '%';
-  $('#hero-sub').textContent = q.allDone ? 'Все задания дня выполнены!'
+  const cb = d.comeback;
+  $('#hero-sub').textContent = cb && cb.ready ? `С возвращением! Сыграй сегодня и получи бонус +${cb.xp} опыта`
+    : q.allDone ? 'Все задания дня выполнены!'
     : (!s.playedToday && s.current > 0 ? `Сыграй сегодня, и серия продолжится. Задания: ${q.done} из 3` : `Задания дня: ${q.done} из 3`);
   $('#hero-streak').textContent = s.current; $('#hero-fire-l').textContent = plural(s.current, 'день', 'дня', 'дней');
   $('#hero-fire').classList.toggle('off', s.current === 0);
@@ -1789,6 +1852,16 @@ function renderRewards() {
   });
   c.appendChild(grid);
 
+  const tr = d.trophies || { gold: 0, silver: 0, bronze: 0, list: [] };
+  c = add('Кубки лиги');
+  const tw = h('div', 'trophies');
+  tw.appendChild(h('span', null, `🥇 ${tr.gold}`)); tw.appendChild(h('span', null, `🥈 ${tr.silver}`)); tw.appendChild(h('span', null, `🥉 ${tr.bronze}`));
+  c.appendChild(tw);
+  c.appendChild(h('p', null, tr.list.length ? tr.list.slice(0, 5).map(x => `${x.icon} ${x.name} лига, ${x.rank} место`).join(' · ') : 'Кубки дают за первые три места в лиге недели. Загляни в «Лигу недели».'));
+  const fr = d.frames || [], frOpen = fr.filter(f => f.unlocked).length;
+  c = add(`Рамки аватара: ${frOpen} из ${fr.length}`);
+  c.appendChild(h('p', null, frOpen ? 'Выбери рамку в профиле, её увидят другие игроки.' : 'Рамки открываются лигами, кубками, серией и уровнями. Выбрать можно в профиле.'));
+
   const open = d.avatars.filter(a => a.unlocked).length, next = d.avatars.find(a => !a.unlocked);
   c = add(`Аватары: ${open} из ${d.avatars.length}`);
   c.appendChild(h('p', null, next ? `Ближайший: ${next.a}, чтобы открыть: ${next.need}. Выбрать аватар можно в профиле.` : 'Все аватары открыты!'));
@@ -1810,6 +1883,7 @@ function celebrate(d) {
   const sameDay = seen.day === d.day, hadQ = new Set(sameDay ? (seen.quests || []) : []);
   d.quests.items.filter(it => it.done && !hadQ.has(it.id)).forEach(it => line(`✅ Задание выполнено: ${it.text} (+${it.xp})`));
   if (d.quests.allDone && !(sameDay && (seen.quests || []).length === 3)) line(`🎁 Все задания дня: бонус +${d.quests.bonus}`);
+  if (d.comeback && d.comeback.today && seen.cb !== d.day) line(`🎁 С возвращением! Бонус за возвращение: +${d.comeback.xp} опыта`);
   if (d.streak.current > seen.streak) line(`🔥 Серия: ${d.streak.current} ${plural(d.streak.current, 'день', 'дня', 'дней')} подряд`);
   if (!lines.length) return;
   box.appendChild(h('h3', null, 'Награды'));
@@ -1876,6 +1950,49 @@ async function rewardAfterMatch() {
 }
 $('#btn-hero').addEventListener('click', () => { renderRewards(); show('rewards'); loadProgress(); });
 $('#btn-rewards-back').addEventListener('click', () => { syncMenu(); show('menu'); });
+
+/* ---------- лига недели (сервер: api/league) ---------- */
+const fmtLeft = (sec) => {
+  const d = Math.floor(sec / 86400), hh = Math.floor(sec % 86400 / 3600), mm = Math.floor(sec % 3600 / 60);
+  return d > 0 ? `${d} ${plural(d, 'день', 'дня', 'дней')} ${hh} ч` : `${hh} ч ${mm} мин`;
+};
+function renderLeague(d) {
+  const body = $('#lg-body'); body.textContent = '';
+  const stack = h('div', 'stack'); body.appendChild(stack);
+  const card = h('div', 'lg-card');
+  card.appendChild(h('span', 'ic', d.icon));
+  const t = h('div'); t.appendChild(h('b', null, d.name));
+  t.appendChild(h('small', null, `До конца недели: ${fmtLeft(d.secondsLeft)}`));
+  t.appendChild(h('small', null, d.rank ? `Твоё место: ${d.rank} из ${d.size}, опыта: ${d.xp}` : `В группе ${d.size}`));
+  card.appendChild(t); stack.appendChild(card);
+  if (d.last) {
+    const L = d.last, res = L.result === 'up' ? 'Ты перешёл в лигу выше!' : L.result === 'down' ? 'Ты спустился на уровень ниже. Новая неделя, новый шанс!' : 'Ты остался в этой лиге.';
+    stack.appendChild(h('p', 'lg-last', `Прошлая неделя: ${L.icon} ${L.name}, ${L.rank} место, ${L.xp} опыта. ${res}${L.rank === 1 ? ' 🏆 Кубок за первое место!' : ''}`));
+  }
+  const list = h('div'); stack.appendChild(list);
+  d.list.forEach(e => {
+    const row = h('div', 'lrow' + (e.me ? ' me' : '') + (e.rank <= d.up && d.league < d.leagues ? ' zup' : (e.rank > d.size - d.down && d.league > 1 ? ' zdown' : '')));
+    row.appendChild(h('span', 'rk', e.rank <= 3 ? MEDAL[e.rank - 1] : String(e.rank)));
+    row.appendChild(h('span', 'av' + frameCls(e.frame), e.avatar || '🙂'));
+    const nm = h('span', 'nm', e.name + (e.me ? ' (ты)' : '')); if (e.bot) nm.appendChild(h('span', 'bot', '🤖'));
+    row.appendChild(nm);
+    row.appendChild(h('span', 'pt', String(e.xp)));
+    list.appendChild(row);
+  });
+  const lg = h('p', 'lg-legend');
+  if (d.league < d.leagues) lg.appendChild(h('span', null, `Зелёная полоса: первые ${d.up} переходят в лигу выше.`));
+  if (d.league > 1) { lg.appendChild(document.createElement('br')); lg.appendChild(h('span', null, `Красная полоса: последние ${d.down} спускаются на уровень ниже.`)); }
+  stack.appendChild(lg);
+  $('#lg-note').textContent = d.list.some(e => e.bot) ? 'Пока игроков мало, в группе играют боты 🤖. Они помечены значком.' : '';
+}
+async function loadLeague() {
+  const body = $('#lg-body'); body.textContent = ''; body.appendChild(h('p', 'pnote', 'Загружаю…')); $('#lg-note').textContent = '';
+  try { await syncNow(); renderLeague(await api('GET', 'league')); }
+  catch (e) { body.textContent = ''; body.appendChild(h('p', 'pnote', acc.user ? 'Лига сейчас недоступна, попробуй позже.' : 'Для лиги нужен профиль и связь с сервером. Игра работает как обычно.')); }
+}
+$('#btn-league').addEventListener('click', () => { show('league'); loadLeague(); });
+$('#btn-league-back').addEventListener('click', () => { syncMenu(); show('menu'); });
+$('#btn-league-rewards').addEventListener('click', () => { renderRewards(); show('rewards'); loadProgress(); });
 
 /* ---------- онлайн-дуэль (сервер: api/duel/*) ---------- */
 /* Общий хостинг без сокетов, поэтому обмен опросом: раз в секунду шлём свои очки и получаем очки соперника.
