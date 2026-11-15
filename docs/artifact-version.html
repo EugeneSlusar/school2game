@@ -315,6 +315,49 @@ button:focus-visible,summary:focus-visible{outline:3px solid var(--you);outline-
 .avs button{position:relative}
 .avs button.lock{opacity:.45;filter:grayscale(1)}
 .avs button.lock::after{content:"\1F512";position:absolute;right:1px;bottom:1px;font-size:11px;line-height:1}
+.streakfx{position:fixed;inset:0;z-index:60;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:6px;padding:24px 18px calc(20px + env(safe-area-inset-bottom));overflow:hidden;color:#fff;background:radial-gradient(ellipse at 50% 28%,#26323a 0%,#141d22 60%,#0c1317 100%);text-align:center}
+.streakfx[hidden]{display:none}
+.sx-sparks{position:absolute;inset:0;pointer-events:none}
+.sx-sparks i{position:absolute;left:50%;top:34%;width:10px;height:10px;border-radius:50%;opacity:0}
+.streakfx.go .sx-sparks i{animation:sxSpark 1.3s var(--d,0s) ease-out forwards}
+@keyframes sxSpark{0%{opacity:0;transform:translate(0,0) scale(.4)}12%{opacity:1}100%{opacity:0;transform:translate(var(--x),var(--y)) scale(1) rotate(var(--r))}}
+.sx-flame{width:clamp(120px,36vw,170px);height:auto;filter:drop-shadow(0 0 28px rgba(255,150,0,.55));transform-origin:50% 90%}
+.sx-shadow{fill:#4b4a1e;opacity:.85}
+.sx-core{transform-origin:60px 112px}
+.streakfx.go .sx-flame{animation:sxPop .7s cubic-bezier(.2,1.5,.4,1) both,sxFlick 1.6s .8s ease-in-out infinite}
+.streakfx.go .sx-core{animation:sxCore 1.1s .8s ease-in-out infinite}
+@keyframes sxPop{0%{transform:scale(0) rotate(-12deg)}100%{transform:scale(1) rotate(0)}}
+@keyframes sxFlick{0%,100%{transform:scale(1) rotate(-1.5deg)}50%{transform:scale(1.045,1.07) rotate(1.8deg)}}
+@keyframes sxCore{0%,100%{transform:scale(1)}50%{transform:scale(1.12)}}
+.sx-count{height:1em;margin-top:6px;overflow:hidden;font:400 clamp(92px,30vw,138px)/1 var(--font-display)}
+.sx-roll{display:flex;flex-direction:column}
+.sx-roll span{height:1em;background:linear-gradient(#ffa21a,#ff5a00);-webkit-background-clip:text;background-clip:text;color:transparent;-webkit-text-fill-color:transparent}
+.streakfx.go .sx-roll{animation:sxRoll .75s .75s cubic-bezier(.2,1.35,.4,1) both}
+@keyframes sxRoll{to{transform:translateY(-50%)}}
+.sx-lbl{margin-top:2px;font:400 clamp(22px,7vw,32px)/1.1 var(--font-display);color:#ff6a13}
+.streakfx.go .sx-lbl{animation:sxUp .5s 1.2s both}
+.sx-week{display:grid;gap:6px;width:min(100%,360px);margin-top:22px}
+.streakfx.go .sx-week{animation:sxUp .5s 1.4s both}
+@keyframes sxUp{from{opacity:0;transform:translateY(14px)}to{opacity:1;transform:none}}
+.sx-labs,.sx-days{display:grid;grid-template-columns:repeat(7,1fr)}
+.sx-labs span{font:400 15px/1 var(--font-display);color:#6d7c86}
+.sx-labs span.now{color:#ff6a13}
+.sx-cell{display:grid;place-items:center;height:42px;font-size:22px;font-weight:700;color:#0f1a20}
+.sx-cell.on{background:linear-gradient(#ff5a00,#ffb000)}
+.sx-cell.ice{background:linear-gradient(#37a9e8,#8fd8ff);color:#06304a}
+.sx-cell.on,.sx-cell.ice{border-radius:0}
+.sx-cell.l{border-radius:22px 0 0 22px}
+.sx-cell.r{border-radius:0 22px 22px 0}
+.sx-cell.l.r{border-radius:22px}
+.sx-txt{max-width:340px;margin:14px 0 0;font-size:21px;line-height:1.3;color:#e8eef2}
+.streakfx.go .sx-txt{animation:sxUp .5s 1.6s both}
+.sx-btns{display:flex;gap:12px;width:min(100%,400px);margin-top:auto;padding-top:18px}
+.streakfx.go .sx-btns{animation:sxUp .5s 1.8s both}
+.sx-share{flex:none;width:64px;height:56px;color:#37b4ff;background:transparent;border:2px solid #34454f;border-radius:16px}
+.sx-share svg{width:26px;height:26px;fill:none;stroke:currentColor;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
+.sx-ok{flex:1;height:56px;padding:0 14px;color:#0b1a24;background:#4cbdff;border:0;border-radius:16px;box-shadow:0 5px 0 #1d8dd0;font:400 20px/1 var(--font-display);letter-spacing:.04em;text-transform:uppercase;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.sx-ok:active{transform:translateY(4px);box-shadow:0 1px 0 #1d8dd0}
+@media (prefers-reduced-motion: reduce){.streakfx *{animation:none!important}.sx-roll{transform:translateY(-50%)}.sx-sparks{display:none}}
 .review h3{margin:0 0 8px;font:400 13px/1 var(--font-display);letter-spacing:.09em;text-transform:uppercase;color:var(--ink-soft)}
 .review p{margin:0;color:var(--ink-soft)}
 .coachline{margin:0;font-size:18px;text-align:center}
@@ -762,6 +805,7 @@ a.btn{display:flex;align-items:center;justify-content:center;box-sizing:border-b
       <p class="err" id="pf-err" role="alert"></p>
       <button type="button" class="btn primary" id="btn-pf-save">Сохранить</button>
       <p class="pnote" id="pf-sync"></p>
+      <button type="button" class="btn" id="btn-sound">Звуки: включены</button>
 
       <div class="codebox">
         <span class="lbl" style="font:400 13px/1 var(--font-display);letter-spacing:.09em;text-transform:uppercase;color:var(--ink-soft)">Код для входа на другом устройстве</span>
@@ -788,6 +832,29 @@ a.btn{display:flex;align-items:center;justify-content:center;box-sizing:border-b
   </section>
 
 </main>
+
+<!-- ===== Праздник серии: после первой игры за день ===== -->
+<div class="streakfx" id="streakfx" role="dialog" aria-modal="true" aria-label="Серия продлена" hidden>
+  <div class="sx-sparks" id="sx-sparks" aria-hidden="true"></div>
+  <svg class="sx-flame" viewBox="0 0 120 150" aria-hidden="true">
+    <defs>
+      <linearGradient id="sxg1" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#ff8a00"/><stop offset="1" stop-color="#ff4d00"/></linearGradient>
+      <linearGradient id="sxg2" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#ffe27a"/><stop offset="1" stop-color="#ffc233"/></linearGradient>
+    </defs>
+    <ellipse class="sx-shadow" cx="60" cy="140" rx="40" ry="8"/>
+    <path d="M60 4C70 28 110 50 110 92c0 33-22 52-50 52S10 125 10 92c0-23 14-35 22-43 3 11 9 15 13 13-2-20 6-44 15-58z" fill="url(#sxg2)"/>
+    <path d="M60 30c8 17 36 33 36 63 0 26-17 39-36 39S24 119 24 93c0-17 9-26 15-32 2 8 6 11 9 10-1-14 4-30 12-41z" fill="url(#sxg1)"/>
+    <path class="sx-core" d="M60 78c9 13 14 21 14 30 0 10-6 15-14 15s-14-5-14-15c0-9 5-17 14-30z" fill="#fff"/>
+  </svg>
+  <div class="sx-count" aria-live="polite"><div class="sx-roll"><span id="sx-old">0</span><span id="sx-new">1</span></div></div>
+  <div class="sx-lbl" id="sx-lbl">день подряд</div>
+  <div class="sx-week" id="sx-week"></div>
+  <p class="sx-txt" id="sx-txt"></p>
+  <div class="sx-btns">
+    <button type="button" class="sx-share" id="sx-share" aria-label="Поделиться серией"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 15V3m0 0L8 7m4-4 4 4M5 12v7a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2v-7"/></svg></button>
+    <button type="button" class="sx-ok" id="sx-ok">Ура!</button>
+  </div>
+</div>
 
 <script>
 (() => {
@@ -1465,6 +1532,7 @@ function renderProfile() {
     b.setAttribute('aria-pressed', String(x.a === (pfAvatar || u.avatar))); box.appendChild(b);
   });
   const n = unsentCount(), bad = prefs.matches.filter(m => m.rej);
+  renderSoundBtn();
   $('#pf-sync').textContent = (n ? `Ждут отправки в рейтинг: ${n}. ` : 'Все принятые матчи уже в рейтинге. ') +
     (bad.length ? `Сервер не принял: ${bad.length} (${[...new Set(bad.map(m => m.rej))].join(', ')}).` : '');
   const rc = getRecovery();
@@ -1594,6 +1662,44 @@ $('#screen-rating').addEventListener('click', (e) => {
   rt[b.dataset.rt] = b.dataset.v; loadRating();
 });
 
+/* ---------- звуки: фанфары синтезируются прямо в браузере, файлов нет ---------- */
+const SOUND_KEY = 'school2game-sound';
+const sfx = (() => {
+  let ctx = null;
+  const enabled = () => { try { return localStorage.getItem(SOUND_KEY) !== '0'; } catch (e) { return true; } };
+  const get = () => {
+    if (!enabled()) return null;
+    try { ctx = ctx || new (window.AudioContext || window.webkitAudioContext)(); if (ctx.state === 'suspended') ctx.resume(); return ctx; } catch (e) { return null; }
+  };
+  const note = (c, freq, t0, dur, type, vol) => {
+    const o = c.createOscillator(), g = c.createGain();
+    o.type = type; o.frequency.setValueAtTime(freq, t0);
+    g.gain.setValueAtTime(0.0001, t0); g.gain.exponentialRampToValueAtTime(vol, t0 + 0.02); g.gain.exponentialRampToValueAtTime(0.0001, t0 + dur);
+    o.connect(g); g.connect(c.destination); o.start(t0); o.stop(t0 + dur + 0.05);
+  };
+  return {
+    enabled,
+    set(on) { try { localStorage.setItem(SOUND_KEY, on ? '1' : '0'); } catch (e) { /* ничего */ } },
+    unlock() { get(); },          // звук можно включать только после касания: создаём и будим контекст на любом касании
+    /* праздник серии: взлёт труб и мажорный аккорд с искрами */
+    fanfare() {
+      const c = get(); if (!c) return;
+      const t = c.currentTime + 0.05;
+      [[392, 0], [523.25, 0.13], [659.25, 0.26], [783.99, 0.39]].forEach(([f, d]) => { note(c, f, t + d, 0.24, 'triangle', 0.22); note(c, f * 2, t + d, 0.2, 'square', 0.04); });
+      [523.25, 659.25, 783.99, 1046.5].forEach(f => { note(c, f, t + 0.6, 1.2, 'triangle', 0.17); note(c, f, t + 0.6, 0.9, 'square', 0.04); });
+      [1760, 2093, 2637, 3136, 2349, 3520].forEach((f, i) => note(c, f, t + 0.75 + i * 0.11, 0.18, 'sine', 0.05));
+    },
+    /* победа в матче: короткий мажорный взлёт */
+    win() {
+      const c = get(); if (!c) return;
+      const t = c.currentTime + 0.02;
+      [523.25, 659.25, 783.99, 1046.5].forEach((f, i) => note(c, f, t + i * 0.09, 0.3, 'triangle', 0.18));
+    },
+    ding() { const c = get(); if (c) note(c, 1318.5, c.currentTime + 0.01, 0.25, 'sine', 0.12); }
+  };
+})();
+document.addEventListener('pointerdown', () => sfx.unlock(), { passive: true });
+
 /* ---------- прогресс: уровень, серия дней, задания дня, значки (сервер: api/progress) ---------- */
 /* Прогресс считает сервер по результатам игрока, поэтому он переезжает вместе с профилем. Без связи карточка просто не показывается. */
 const prog = { data: null };
@@ -1681,6 +1787,7 @@ function celebrate(d) {
   const seen = getSeen(); setSeen(d);
   const box = $('#res-reward'); box.textContent = ''; box.hidden = true;
   if (!seen) return;
+  if (d.streak.playedToday && d.streak.current > seen.streak && d.week) showStreakFx(d, seen.streak);   // серия выросла: праздник на весь экран
   const lines = [], line = (t, cls) => lines.push(h('p', cls || null, t));
   const gain = d.xp - seen.xp;
   if (gain > 0) line(`+${gain} опыта`, 'xp');
@@ -1698,6 +1805,51 @@ function celebrate(d) {
   lines.forEach(l => box.appendChild(l));
   box.hidden = false;
 }
+/* праздник серии, как в Duolingo: после первой игры за день огонёк, счётчик +1, неделя с галочками и фанфары */
+function showStreakFx(d, oldN) {
+  const box = $('#streakfx'), n = d.streak.current, wk = d.week;
+  $('#sx-old').textContent = oldN; $('#sx-new').textContent = n;
+  $('#sx-lbl').textContent = plural(n, 'день подряд', 'дня подряд', 'дней подряд');
+  const labels = ['Пн', 'Вт', 'Ср', 'Чт', 'Пт', 'Сб', 'Вс'], strip = $('#sx-week'); strip.textContent = '';
+  const labs = h('div', 'sx-labs'), days = h('div', 'sx-days');
+  const lit = (i) => i >= 0 && i < 7 && wk.days[i] !== '';
+  wk.days.forEach((st, i) => {
+    labs.appendChild(h('span', i === wk.today ? 'now' : '', labels[i]));
+    const c = h('span', 'sx-cell' + (st === 'done' ? ' on' : st === 'frozen' ? ' ice' : '') + (st && !lit(i - 1) ? ' l' : '') + (st && !lit(i + 1) ? ' r' : ''), st === 'done' ? '✓' : st === 'frozen' ? '❄' : '');
+    days.appendChild(c);
+  });
+  strip.appendChild(labs); strip.appendChild(days);
+  const hrs = Math.floor((d.dayLeft || 0) / 3600);
+  $('#sx-txt').textContent = n <= 1 ? 'Серия началась! Играй каждый день, и огонёк будет расти.'
+    : hrs >= 1 ? `До конца дня ещё больше ${hrs} ${plural(hrs, 'часа', 'часов', 'часов')}, а ты уже продлил серию. Здорово!` : 'Серия продлена на сегодня. Здорово!';
+  const nick = acc.user && acc.user.nick;
+  $('#sx-ok').textContent = nick ? `Ура, ${nick}` : 'Ура!';
+  const sp = $('#sx-sparks'); sp.textContent = '';
+  const colors = ['#ffd95a', '#ff8a00', '#fff3b0', '#ff5a00', '#ffb000'];
+  for (let i = 0; i < 26; i++) {
+    const a = Math.random() * Math.PI * 2, r = 90 + Math.random() * 150, el = document.createElement('i');
+    el.style.setProperty('--x', Math.round(Math.cos(a) * r) + 'px'); el.style.setProperty('--y', Math.round(Math.sin(a) * r - 40) + 'px');
+    el.style.setProperty('--r', Math.round(Math.random() * 400 - 200) + 'deg'); el.style.setProperty('--d', (0.55 + Math.random() * 0.5).toFixed(2) + 's');
+    el.style.background = colors[i % colors.length]; sp.appendChild(el);
+  }
+  box.hidden = false; box.classList.remove('go'); void box.offsetWidth; box.classList.add('go');
+  sfx.fanfare();
+  $('#sx-ok').focus();
+}
+$('#sx-ok').addEventListener('click', () => { $('#streakfx').hidden = true; });
+document.addEventListener('keydown', (e) => { if (e.key === 'Escape' && !$('#streakfx').hidden) $('#streakfx').hidden = true; });
+$('#sx-share').addEventListener('click', async () => {
+  const n = prog.data ? prog.data.streak.current : 1, text = `Моя серия в school2game: ${n} ${plural(n, 'день', 'дня', 'дней')} подряд! Сможешь так?`, url = location.origin + location.pathname;
+  try { if (navigator.share) { await navigator.share({ title: 'school2game', text, url }); return; } } catch (e) { if (e && e.name === 'AbortError') return; }
+  try { if (navigator.clipboard) { await navigator.clipboard.writeText(text + ' ' + url); $('#sx-txt').textContent = 'Текст скопирован. Отправь его другу!'; } } catch (e) { /* ничего */ }
+});
+$('#btn-sound').addEventListener('click', () => {
+  sfx.set(!sfx.enabled()); renderSoundBtn();
+  if (sfx.enabled()) sfx.ding();
+});
+const renderSoundBtn = () => { $('#btn-sound').textContent = sfx.enabled() ? 'Звуки: включены' : 'Звуки: выключены'; };
+renderSoundBtn();
+
 let rewardSeq = 0;
 async function rewardAfterMatch() {
   const seq = ++rewardSeq;
@@ -2376,6 +2528,7 @@ function finishMatch(reason) {
   lastMode = M.duel ? 'duel' : M.test ? 'test' : 'match';
   $('#btn-rematch').textContent = lastMode === 'duel' ? 'Новая дуэль' : lastMode === 'test' ? 'Ещё раз' : 'Реванш';
   show('result');
+  if (outcome === 'win') sfx.win();
 }
 
 function setPause(on) {
