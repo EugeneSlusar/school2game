@@ -140,8 +140,8 @@ function duelView(array $d, int $uid): array {
     $me = duelSlot($d, $uid); $o = 3 - $me;
     $opp = null;
     if ($d["p$o"] !== null) {
-        $u = one('SELECT id, nick, avatar FROM users WHERE id = ?', [$d["p$o"]]);
-        $opp = ['name' => $u ? displayName($u) : 'Соперник', 'avatar' => $u['avatar'] ?? '🙂', 'sport' => $d["p{$o}_sport"],
+        $u = one('SELECT id, nick, avatar, frame FROM users WHERE id = ?', [$d["p$o"]]);
+        $opp = ['name' => $u ? displayName($u) : 'Соперник', 'avatar' => $u['avatar'] ?? '🙂', 'frame' => $u['frame'] ?? '', 'sport' => $d["p{$o}_sport"],
             'pts' => (int)$d["p{$o}_pts"], 'fin' => (int)$d["p{$o}_fin"] === 1, 'gone' => $d['status'] === 'playing' && duelGone($d, $o)];
     }
     $result = null;

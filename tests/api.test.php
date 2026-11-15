@@ -10,7 +10,7 @@ function ok(bool $c, string $name): void { global $fail, $n; $n++; if (!$c) { $f
 
 // --- миграции
 $first = migrate(); $again = migrate();
-ok($first === ['001_init', '002_accounts', '003_duels', '004_duel_stats', '005_progress'] && $again === [], 'миграции: первый запуск применяет все, повторный ничего');
+ok($first === ['001_init', '002_accounts', '003_duels', '004_duel_stats', '005_progress', '006_league'] && $again === [], 'миграции: первый запуск применяет все, повторный ничего');
 $tmp = sys_get_temp_dir() . '/s2g-mig-' . getmypid(); mkdir($tmp);
 foreach (['001_init', '002_accounts'] as $f) copy(__DIR__ . "/../server/migrations/$f.php", "$tmp/$f.php");
 file_put_contents("$tmp/003_extra.php", '<?php return function ($db, $d) { $db->exec("CREATE TABLE IF NOT EXISTS extra_t (id INT)"); };');
@@ -296,6 +296,59 @@ q('INSERT INTO results (id, user_id, played_at, subject, topic, level, sport, fo
     ['o1', $oid, $NOW - 7 * $DAY, 'math', 'all', 'medium', 'football', '1x1', 20, 10, 20, 'win', 12, 2, 1, 120, '{}', $NOW]);
 $p = computeProgress($oid, $NOW); ok($p['streak']['current'] === 1 && $p['streak']['best'] === 1 && $p['xp'] >= 22, 'старый матч, присланный позже двух суток, считается днём получения');
 [$st, $p2] = call('GET', '/progress', null, $cp); ok(!array_key_exists('recovery_hash', $p2) && !array_key_exists('id', $p2), 'в прогрессе нет служебных полей');
+
+// --- лига недели, кубки, рамки, награда за возвращение
+use function S2G\{weekOf, weekStartTs};
+$lg = fn(string $cookie, int $now) => S2G\league(['cookie' => $cookie, 'now' => $now])[1];
+$wk = weekOf($NOW); $ws0 = (new DateTimeImmutable('@' . weekStartTs($wk)))->setTimezone(new DateTimeZone('Europe/Moscow'));
+ok($ws0->format('N H:i') === '1 00:00' && weekOf(weekStartTs($wk)) === $wk && weekOf(weekStartTs($wk) - 1) === $wk - 1 && weekStartTs($wk) === S2G\weekStart($NOW), 'неделя начинается с понедельника, 00:00 по Москве, как в недельном рейтинге');
+[$st] = call('GET', '/league'); ok($st === 401, 'лига без входа = 401');
+[$ul1, $cl1] = guest('3.0.2.1'); [$ul2, $cl2] = guest('3.0.2.2');
+[$st, $L] = call('GET', '/league', null, $cl1);
+ok($st === 200 && $L['league'] === 1 && $L['name'] === 'Бронзовая лига' && $L['size'] >= 8 && $L['rank'] !== null && count($L['list']) === $L['size'] && $L['secondsLeft'] > 0 && $L['secondsLeft'] <= 7 * $DAY, 'лига: новичок в бронзовой, группа дополнена ботами');
+ok(count(array_filter($L['list'], fn($e) => $e['bot'])) >= 6 && count(array_filter($L['list'], fn($e) => !empty($e['me']))) === 1, 'боты помечены, свой ряд один');
+call('GET', '/league', null, $cl2);
+$members = one('SELECT COUNT(*) c FROM league_members WHERE week = ? AND league = 1 AND grp = 1', [weekOf($NOW)]); ok((int)$members['c'] >= 2, 'второй игрок попал в ту же группу');
+rowMatch((int)$ul1['id'], 'lg1', $NOW - 30, ['correct' => 40]);
+$L = $lg($cl1, $NOW); ok($L['xp'] >= 50, 'опыт недели растёт от матчей');
+// итоги недели: победитель поднимается, выигрыш недели даёт кубок и рамку
+[$uw, $cw] = guest('3.0.2.3'); $wid = (int)$uw['id'];
+$prevNow = $NOW - 7 * $DAY;
+$lg($cw, $prevNow);
+rowMatch($wid, 'lw1', $prevNow + 60, ['correct' => 900]);
+$wWeek = weekOf($prevNow);
+[$uz, $cz] = guest('3.0.2.4'); $zid = (int)$uz['id'];
+q('INSERT INTO league_members (week, user_id, league, grp) VALUES (?, ?, 2, 1)', [$wWeek, $zid]);   // в серебряной лиге без единого очка
+$L = $lg($cw, $NOW);
+$row = one('SELECT final_rank, result FROM league_members WHERE week = ? AND user_id = ?', [$wWeek, $wid]);
+ok((int)$row['final_rank'] === 1 && $row['result'] === 'up' && $L['league'] === 2 && $L['name'] === 'Серебряная лига', 'победитель недели поднялся в серебряную лигу');
+ok($L['last'] !== null && $L['last']['rank'] === 1 && $L['last']['result'] === 'up' && $L['last']['league'] === 1 && $L['trophies']['gold'] === 1, 'итог прошлой недели и золотой кубок');
+$Lz = $lg($cz, $NOW); $rz = one('SELECT final_rank, result FROM league_members WHERE week = ? AND user_id = ?', [$wWeek, $zid]);
+ok($rz['result'] === 'down' && $Lz['league'] === 1, 'без очков в серебряной лиге: спуск в бронзовую');
+$again = one('SELECT final_rank FROM league_members WHERE week = ? AND user_id = ?', [$wWeek, $wid]); $lg($cw, $NOW); ok((int)$again['final_rank'] === 1, 'повторный вызов итоги не меняет');
+[, $prW] = call('GET', '/progress', null, $cw);
+$fr = fn(string $id) => array_values(array_filter($prW['frames'], fn($f) => $f['id'] === $id))[0]['unlocked'];
+ok($prW['trophies']['gold'] === 1 && $fr('crown') && $fr('silver') && !$fr('gold') && count($prW['frames']) === 10, 'кубок и рамки: чемпионская и серебряная открыты, золотая нет');
+[$st, $r] = call('POST', '/profile', ['frame' => 'gold'], $cw); ok($st === 403 && $r['error'] === 'frame_locked', 'закрытую рамку выбрать нельзя');
+[$st, $r] = call('POST', '/profile', ['frame' => 'silver'], $cw); ok($st === 200 && $r['user']['frame'] === 'silver', 'открытую рамку можно выбрать');
+[$st, $r] = call('POST', '/profile', ['frame' => 'нет'], $cw); ok($st === 403, 'неизвестная рамка отклонена');
+[, $r] = call('GET', '/me', null, $cw); ok($r['user']['frame'] === 'silver', 'рамка видна в профиле');
+[$st, $r] = call('POST', '/profile', ['frame' => ''], $cw); ok($st === 200 && $r['user']['frame'] === '', 'рамку можно снять');
+call('POST', '/profile', ['frame' => 'silver'], $cw);
+$Lx = $lg($cw, $NOW); ok(count(array_filter($Lx['list'], fn($e) => !empty($e['me']) && $e['frame'] === 'silver')) === 1, 'рамка видна в таблице лиги');
+// награда за возвращение
+[$ub, $cb2] = guest('3.0.2.5'); $bid2 = (int)$ub['id'];
+rowMatch($bid2, 'b1', $NOW - 5 * $DAY);
+$p = computeProgress($bid2, $NOW);
+ok($p['comeback']['ready'] === true && $p['comeback']['today'] === false && $p['comeback']['xp'] === 50 && $p['comeback']['missed'] === 4, 'после перерыва игра предлагает бонус за возвращение');
+rowMatch($bid2, 'b2', $NOW - 10);
+$p2 = computeProgress($bid2, $NOW);
+ok($p2['comeback']['today'] === true && $p2['comeback']['ready'] === false && $p2['comeback']['xp'] === 50 && $p2['xp'] >= $p['xp'] + 22 + 50, 'вернулся и сыграл: бонус +50 к опыту');
+[$ul, $cl] = guest('3.0.2.6'); $lid = (int)$ul['id'];
+rowMatch($lid, 'c1', $NOW - 20 * $DAY); rowMatch($lid, 'c2', $NOW - 10);
+ok(computeProgress($lid, $NOW)['comeback']['xp'] === 100, 'после двух недель перерыва бонус +100');
+[$un, $cn] = guest('3.0.2.7'); rowMatch((int)$un['id'], 'n1', $NOW - 2 * $DAY);
+ok(computeProgress((int)$un['id'], $NOW)['comeback']['ready'] === false, 'пропуск в один день бонусом не считается');
 
 // --- выход
 call('POST', '/logout', [], $c1);

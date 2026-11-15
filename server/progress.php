@@ -78,6 +78,24 @@ function questsFor(int $uid, int $day): array {
     return $pick;
 }
 
+/** Опыт: матч против бота, дуэль, контрольная. Лига недели считает по тем же формулам. */
+function xpBot(int $correct, bool $win): int { return $correct + 5 + ($win ? 5 : 0); }
+function xpDuel(int $score, bool $win): int { return 10 + ($win ? 15 : 0) + intdiv($score, 5); }
+function xpTest(int $correct, int $total): int { $g = testGrade($correct, $total); return $correct + 10 + ($g === 5 ? 20 : ($g === 4 ? 10 : ($g === 3 ? 5 : 0))); }
+
+/** Рамки аватара: id => [название, показатель, нужно, подсказка] */
+const FRAMES = [
+    'bronze' => ['Бронзовая', 'maxLeague', 1, 'Попади в бронзовую лигу'], 'silver' => ['Серебряная', 'maxLeague', 2, 'Дойди до серебряной лиги'],
+    'gold' => ['Золотая', 'maxLeague', 3, 'Дойди до золотой лиги'], 'sapphire' => ['Сапфировая', 'maxLeague', 4, 'Дойди до сапфировой лиги'],
+    'ruby' => ['Рубиновая', 'maxLeague', 5, 'Дойди до рубиновой лиги'], 'emerald' => ['Изумрудная', 'maxLeague', 6, 'Дойди до изумрудной лиги'],
+    'diamond' => ['Алмазная', 'maxLeague', 7, 'Дойди до алмазной лиги'],
+    'flame' => ['Огненная', 'streakBest', 14, 'Серия 14 дней'], 'star' => ['Звёздная', 'level', 8, 'Уровень 8'],
+    'crown' => ['Чемпионская', 'trophyGold', 1, 'Выиграй неделю в лиге'],
+];
+
+/** Бонус за возвращение после перерыва: после 3 и более пропущенных дней, а после двух недель побольше */
+function comebackBonus(int $missed): int { return $missed >= 14 ? 100 : 50; }
+
 function emptyDay(): array { return ['matches' => 0, 'correct' => 0, 'wins' => 0, 'c_math' => 0, 'c_rus' => 0, 'tests' => 0, 'sharp' => 0]; }
 
 /** Весь прогресс игрока. $now подменяется в тестах. */
@@ -93,7 +111,7 @@ function computeProgress(int $uid, ?int $now = null): array {
         $days[$d] ??= emptyDay();
         $c = (int)$r['correct']; $win = $r['outcome'] === 'win';
         $att = $c + (int)$r['wrong'] + (int)$r['timeouts'];
-        $xp += $c + 5 + ($win ? 5 : 0);
+        $xp += xpBot($c, $win);
         $days[$d]['matches']++; $days[$d]['correct'] += $c; $days[$d]['c_' . $r['subject']] += $c;
         if ($win) $days[$d]['wins']++;
         if ($att > 0 && $c >= 10 && $c / $att >= 0.8) $days[$d]['sharp']++;
@@ -104,7 +122,7 @@ function computeProgress(int $uid, ?int $now = null): array {
         $d = mskDay((int)$r['played_at']);
         $days[$d] ??= emptyDay();
         $win = $r['outcome'] === 'win';
-        $xp += 10 + ($win ? 15 : 0) + intdiv((int)$r['score'], 5);
+        $xp += xpDuel((int)$r['score'], $win);
         $days[$d]['matches']++; if ($win) $days[$d]['wins']++;
         $t['duels']++; if ($win) $t['duelWins']++;
         $subjects[$r['subject']] = true;
@@ -113,7 +131,7 @@ function computeProgress(int $uid, ?int $now = null): array {
         $d = activityDay((int)$r['played_at'], (int)$r['created_at']);
         $days[$d] ??= emptyDay();
         $c = (int)$r['correct']; $tot = (int)$r['total']; $g = testGrade($c, $tot);
-        $xp += $c + 10 + ($g === 5 ? 20 : ($g === 4 ? 10 : ($g === 3 ? 5 : 0)));
+        $xp += xpTest($c, $tot);
         $days[$d]['tests']++; $days[$d]['correct'] += $c; $days[$d]['c_' . $r['subject']] += $c;
         $t['tests']++; $t['correct'] += $c; if ($g === 5) $t['tests5']++;
         if ((int)$r['wrong'] === 0 && $c === $tot && $tot >= 20) $t['clean']++;
@@ -135,6 +153,14 @@ function computeProgress(int $uid, ?int $now = null): array {
         $best = max($best, $streak);
         $prev = $d;
     }
+    // возвращение после перерыва: бонус в день, когда игрок снова сыграл
+    $comebackXp = 0; $comebackToday = false;
+    for ($i = 1; $i < count($active); $i++) {
+        $missed = $active[$i] - $active[$i - 1] - 1;
+        if ($missed >= 3) { $b = comebackBonus($missed); $xp += $b; if ($active[$i] === $today) { $comebackXp = $b; $comebackToday = true; } }
+    }
+    $comebackReady = false; $comebackMissed = 0;
+    if ($prev !== null && $prev !== $today && $today - $prev - 1 >= 3) { $comebackReady = true; $comebackMissed = $today - $prev - 1; $comebackXp = comebackBonus($comebackMissed); }
     // неделя (пн-вс) для полоски в празднике серии: 'done' играл, 'frozen' закрыт заморозкой
     $idx = ($today + 3) % 7;                  // 1 января 1970 был четвергом
     $week = [];
@@ -152,8 +178,10 @@ function computeProgress(int $uid, ?int $now = null): array {
         if ($done === 3) { $xp += QUEST_DAY_BONUS; $allDays++; }
     }
     $level = levelOf($xp);
+    $lg = one('SELECT MAX(league) m FROM league_members WHERE user_id = ?', [$uid]);
+    $trophies = leagueTrophies($uid);
 
-    $stats = $t + ['streakBest' => $best, 'allDays' => $allDays, 'level' => $level, 'subjects' => count($subjects)];
+    $stats = $t + ['streakBest' => $best, 'allDays' => $allDays, 'level' => $level, 'subjects' => count($subjects), 'maxLeague' => (int)($lg['m'] ?? 0), 'trophyGold' => $trophies['gold']];
 
     $dayNow = $days[$today] ?? emptyDay();
     $quests = []; $doneNow = 0;
@@ -176,7 +204,12 @@ function computeProgress(int $uid, ?int $now = null): array {
         $avatars[] = ['a' => $a, 'unlocked' => (int)$stats[$key] >= $need, 'need' => $hint];
     }
 
+    $frames = [];
+    foreach (FRAMES as $id => [$name, $key, $need, $hint]) $frames[] = ['id' => $id, 'name' => $name, 'unlocked' => (int)$stats[$key] >= $need, 'need' => $hint];
+
     return [
+        'comeback' => ['ready' => $comebackReady, 'today' => $comebackToday, 'xp' => $comebackXp, 'missed' => $comebackMissed],
+        'frames' => $frames, 'trophies' => $trophies,
         'day' => $today, 'dayLeft' => 86400 - (($now + MSK_OFFSET) % 86400), 'week' => ['days' => $week, 'today' => $idx], 'xp' => $xp, 'level' => $level, 'title' => titleOf($level), 'levelXp' => xpForLevel($level), 'nextXp' => $level >= MAX_LEVEL ? null : xpForLevel($level + 1),
         'streak' => ['current' => $alive ? $streak : 0, 'best' => $best, 'playedToday' => $prev === $today, 'freezes' => $freezes],
         'quests' => ['items' => $quests, 'done' => $doneNow, 'allDone' => $doneNow === 3, 'bonus' => QUEST_DAY_BONUS],
@@ -191,6 +224,13 @@ function avatarUnlocked(int $uid, string $avatar): bool {
     if ($i === false) return false;
     if ($i < FREE_AVATARS || !isset(AVATAR_LOCKS[$avatar])) return true;
     foreach (computeProgress($uid)['avatars'] as $a) if ($a['a'] === $avatar) return $a['unlocked'];
+    return false;
+}
+
+/** Открыта ли рамка игроку */
+function frameUnlocked(int $uid, string $frame): bool {
+    if ($frame === '') return true;
+    foreach (computeProgress($uid)['frames'] as $f) if ($f['id'] === $frame) return $f['unlocked'];
     return false;
 }
 
