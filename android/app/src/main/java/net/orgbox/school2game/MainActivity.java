@@ -1,4 +1,4 @@
-package ru.slusar.tablichnysport;
+package net.orgbox.school2game;
 
 import com.getcapacitor.BridgeActivity;
 
