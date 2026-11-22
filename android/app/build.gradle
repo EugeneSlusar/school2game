@@ -9,10 +9,10 @@ def computedVersionCode = vparts[0] * 10000 + vparts[1] * 100 + vparts[2]
 def haveKeystore = System.getenv('S2G_KEYSTORE_FILE') != null && file(System.getenv('S2G_KEYSTORE_FILE')).exists()
 
 android {
-    namespace "ru.slusar.tablichnysport"
+    namespace "net.orgbox.school2game"
     compileSdk rootProject.ext.compileSdkVersion
     defaultConfig {
-        applicationId "ru.slusar.tablichnysport"
+        applicationId "net.orgbox.school2game"
         minSdkVersion rootProject.ext.minSdkVersion
         targetSdkVersion rootProject.ext.targetSdkVersion
         versionCode computedVersionCode

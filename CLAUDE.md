@@ -18,7 +18,7 @@
 - `index.html` в корне — символьная ссылка на `public_html/index.html` (сайт публикуется из корня), не править.
 - `tools/make-index.js` — генератор `public_html/index.html`; `tools/gentest.js` — проверка генераторов заданий; `tools/smoke.js` — дымовой тест матча в jsdom (нужен `npm i jsdom` вне репозитория); `tools/make-icons.py` — иконки.
 - `server/` — PHP-бэкенд (профили, рейтинг, фильтр ников, миграции), `public_html/api/index.php` — единственная точка входа, `tests/api.test.php` — тесты на SQLite (`npm run test:api`), `tests/profanity.test.php` — фильтр ников (`npm run test:profanity`), `tools/duel-e2e.js` — живая проверка дуэли двумя браузерами (Playwright + `php -S`, см. шапку файла), `tests/ui.test.js` — тест экранов в jsdom с поддельным сервером (`NODE_PATH=<jsdom> npm run test:ui`, как и `tools/smoke.js`). Секреты только в `.env` (в git не попадает, образец `.env.example`).
-- `android/`, `capacitor.config.json` — обёртка Capacitor 7 (appId `ru.slusar.tablichnysport`, не менять, иначе APK не встанет поверх старого).
+- `android/`, `capacitor.config.json` — обёртка Capacitor 7 (appId `net.orgbox.school2game`, по домену сайта; сменён с `ru.slusar.tablichnysport` 22.11.2026 до первой публикации. После первой публикации в любой магазин не менять никогда).
 - `.github/workflows/android-apk.yml` (отладочный APK) и `android-release.yml` (подписанные APK и AAB для RuStore) — оба только по ручному запуску. `docs/store/` — материалы для магазина.
 
 ## Команды
